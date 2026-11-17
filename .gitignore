@@ -1,0 +1,9 @@
+node_modules
+.nuxt
+.output
+.vercel
+.data
+data/*.db*
+.env
+golden_samples/*
+!golden_samples/README.md
