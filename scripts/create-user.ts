@@ -12,8 +12,8 @@ const { useDb, schema } = await import('../server/db')
 const { hashPassword } = await import('../server/utils/password')
 
 const [email, password] = process.argv.slice(2)
-if (!email || !password || password.length < 10) {
-    console.error('Cách dùng: npm run user:create -- <email> <mật khẩu ≥ 10 ký tự>')
+if (!email || !password || password.length < 8) {
+    console.error('Cách dùng: npm run user:create -- <email> <mật khẩu ≥ 8 ký tự>')
     process.exit(1)
 }
 
