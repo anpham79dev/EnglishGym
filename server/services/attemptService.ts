@@ -46,9 +46,8 @@ export interface SubmitInput {
 }
 
 /**
- * Nộp bài có chống gửi trùng theo client_attempt_id:
- * - đã có và không `failed` → trả lại kết quả cũ, không gọi Gemini lần hai
- * - `failed` → chấm lại trên cùng bản ghi
+ * Idempotent on client_attempt_id: an existing non-failed row is returned as is,
+ * a failed row is re-graded in place.
  */
 export const submitAttempt = async (
     input: SubmitInput,
@@ -108,8 +107,8 @@ export const submitAttempt = async (
 }
 
 /**
- * Lưu bản chép lời cuối và các lỗi đã duyệt trong một transaction.
- * Xác nhận lần hai trả lại kết quả cũ; unique (attempt_id, issue_index) chặn đếm trùng.
+ * Save the final transcript and approved issues in one transaction.
+ * Re-confirming is a no-op; unique (attempt_id, issue_index) prevents double counts.
  */
 export const confirmAttempt = async (id: string, body: ConfirmBody): Promise<Attempt> => {
     const db = useDb()

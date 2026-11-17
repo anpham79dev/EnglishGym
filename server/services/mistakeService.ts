@@ -10,7 +10,7 @@ const h = schema.mistakeHits
 
 export { toPatternKey }
 
-/** hit_count, first_seen, last_seen luôn tính lại từ mistake_hits để không lệch. */
+/** Recompute hit_count/first_seen/last_seen from hits; delete if empty. */
 export const recomputeMistake = async (tx: Tx | Db, mistakeId: string) => {
     const [agg] = await tx
         .select({
@@ -72,9 +72,9 @@ export interface MistakePatch {
     exampleRight?: string
     category?: string
     isFocus?: boolean
-    /** Gộp lỗi này vào lỗi khác. */
+    /** Merge into another mistake. */
     mergeIntoId?: string
-    /** Tách một số lần sai sang kiểu lỗi mới (hoặc kiểu đã có cùng pattern_key). */
+    /** Move some hits to another (new or existing) pattern. */
     split?: { hitIds: string[]; patternKey: string; labelVi: string }
 }
 

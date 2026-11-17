@@ -30,7 +30,7 @@ const words = computed(() => countWords(draft.text))
 onMounted(async () => {
     const fromId = route.query.from as string | undefined
     if (fromId) {
-        // Phiên bản mới của bài đã nộp: cùng attempt_group_id, version tăng ở server.
+        // New version: same group, server bumps version.
         const { attempt } = await fetchAttempt(fromId)
         Object.assign(draft, {
             clientAttemptId: crypto.randomUUID(),

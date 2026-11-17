@@ -2,7 +2,7 @@ export default defineNuxtConfig({
     compatibilityDate: '2026-11-01',
     devtools: { enabled: false },
     telemetry: false,
-    // SPA: MediaRecorder và IndexedDB chỉ có ở trình duyệt, không cần SSR cho app cá nhân.
+    // SPA: MediaRecorder and IndexedDB are browser-only.
     ssr: false,
     css: ['~/assets/css/main.css'],
     app: {
@@ -18,7 +18,7 @@ export default defineNuxtConfig({
             ],
         },
     },
-    // Chỉ server đọc các biến này qua process.env; không dùng runtimeConfig.public.
+    // Secrets are read from process.env on the server only.
     nitro: {
         vercel: { functions: { maxDuration: 60 } },
     },

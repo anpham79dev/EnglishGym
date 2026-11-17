@@ -75,7 +75,7 @@ export interface MistakeWithHits extends Mistake {
     hits: (MistakeHit & { kind: AttemptKind; createdAt: number })[]
 }
 
-/** Một lỗi người dùng đã duyệt, gửi lên khi xác nhận. */
+/** An issue approved by the user on confirm. */
 export interface ConfirmIssue {
     issueIndex: number
     originalQuote: string
@@ -92,6 +92,6 @@ export interface ConfirmBody {
     issues: ConfirmIssue[]
 }
 
-/** Lỗi trả về khi gọi AI thất bại; client dùng `code` để hiện nút Copy prompt. */
+/** Error codes; the client uses them to decide on "Copy prompt". */
 export type ApiErrorCode =
     'QUOTA' | 'DAILY_LIMIT' | 'INVALID_AI' | 'AI_ERROR' | 'TOO_LARGE' | 'BAD_MIME' | 'RATE_LIMIT'

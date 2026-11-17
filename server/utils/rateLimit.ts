@@ -7,8 +7,8 @@ export const DAY_MS = 24 * 60 * MINUTE_MS
 const windowStartOf = (windowMs: number) => Math.floor(Date.now() / windowMs) * windowMs
 
 /**
- * Tăng bộ đếm trong cửa sổ cố định, trả về số lượt sau khi tăng.
- * Lưu trong DB vì serverless function không giữ RAM giữa các lần gọi.
+ * Fixed-window counter; returns the new count.
+ * Stored in the DB because serverless functions keep no memory.
  */
 export const hitCounter = async (key: string, windowMs: number): Promise<number> => {
     const t = schema.rateCounters

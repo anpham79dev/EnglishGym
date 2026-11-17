@@ -1,7 +1,6 @@
 /**
- * Tìm đoạn trích của AI trong văn bản gốc.
- * Chỉ bỏ qua khác biệt "vô hại": khoảng trắng liên tiếp và dấu nháy cong/thẳng.
- * Không bỏ qua hoa/thường hay dấu câu khác, để tránh tô nhầm chỗ.
+ * Locate an AI quote in the source text. Only whitespace runs and curly/straight
+ * quotes are ignored; case and punctuation must match.
  */
 const QUOTE_MAP: Record<string, string> = {
     '\u2018': "'",
@@ -15,7 +14,7 @@ const QUOTE_MAP: Record<string, string> = {
 
 interface Normalized {
     text: string
-    /** map[i] = vị trí trong chuỗi gốc của ký tự thứ i trong chuỗi đã chuẩn hoá */
+    /** map[i] = source index of normalized char i */
     map: number[]
 }
 
@@ -69,7 +68,7 @@ export interface TextSegment {
 }
 
 /**
- * Cắt văn bản thành các đoạn để tô lỗi. Lỗi không khớp hoặc chồng lên lỗi trước bị bỏ qua.
+ * Split text into highlight segments. Unmatched or overlapping quotes are skipped.
  */
 export const segmentText = (
     source: string,
@@ -94,11 +93,11 @@ export const segmentText = (
 }
 
 export interface IssueAssessment {
-    /** Đoạn trích có thật trong văn bản gốc. */
+    /** Quote exists in the source. */
     matched: boolean
-    /** Đoạn trích dài bất thường: dấu hiệu AI viết lại cả đoạn. */
+    /** Suspiciously long quote: likely a rewrite. */
     tooLong: boolean
-    /** Mặc định tick hay không (plan mục 7: không khớp → bỏ tick, "cần xem lại"). */
+    /** Pre-check only matched, non-rewrite issues. */
     defaultChecked: boolean
 }
 

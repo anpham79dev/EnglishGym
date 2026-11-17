@@ -5,13 +5,13 @@ export const countWords = (text: string): number => {
     return m ? m.length : 0
 }
 
-/** Số từ ÷ (thời lượng giây ÷ 60). */
+/** words ÷ minutes */
 export const wordsPerMinute = (words: number, durationS: number): number | null => {
     if (!durationS || durationS <= 0) return null
     return Math.round((words / (durationS / 60)) * 10) / 10
 }
 
-/** Đếm từ đệm. Chỉ là gợi ý: "like", "you know" có khi dùng đúng, người dùng chỉnh tay. */
+/** Rough filler count; the user can correct it ("like" may be legit). */
 export const countFillers = (text: string, phrases: string[] = FILLER_PHRASES): number => {
     const lower = ` ${text
         .toLowerCase()
@@ -31,7 +31,7 @@ export const countFillers = (text: string, phrases: string[] = FILLER_PHRASES): 
     return total
 }
 
-/** Số lỗi đã duyệt × 100 ÷ số từ. */
+/** confirmed errors × 100 ÷ words */
 export const errorsPer100Words = (errors: number, words: number): number | null => {
     if (!words) return null
     return Math.round(((errors * 100) / words) * 10) / 10

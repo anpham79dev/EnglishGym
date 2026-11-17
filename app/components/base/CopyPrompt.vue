@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** Dự phòng khi Gemini lỗi/hết quota: copy prompt dán sang AI khác, không mất buổi học. */
+/** Fallback when Gemini fails: grade manually in another AI. */
 const props = defineProps<{
     prompt: string
     audio?: { blob: Blob; mimeType: string } | null

@@ -1,6 +1,5 @@
 /**
- * Nạp kho đề tình huống công việc dev web. Chạy lại an toàn (bỏ qua đề đã có).
- * Sửa đề: sửa mảng dưới đây rồi chạy lại, hoặc sửa thẳng trong DB.
+ * Seed practice topics. Safe to re-run: existing ids are skipped.
  */
 import { existsSync } from 'node:fs'
 
@@ -17,7 +16,7 @@ type Seed = {
 }
 
 const TOPICS: Seed[] = [
-    // --- Speaking (1–2 phút) ---
+    // --- Speaking (1–2 min) ---
     {
         id: 's-bug-report',
         kind: 'speaking',

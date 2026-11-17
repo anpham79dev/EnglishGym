@@ -1,17 +1,17 @@
 /**
- * Buổi 0 – cổng kiểm chứng Gemini. Không cần Nuxt hay DB.
+ * Gemini evaluation (plan "Buổi 0"). No Nuxt or DB needed.
  *
  *   golden_samples/
  *     clip01.webm            ← audio (webm, ogg, mp4, m4a, mp3, wav…)
- *     clip01.json            ← đáp án chuẩn bạn tự viết TRƯỚC khi chạy:
+ *     clip01.json            ← hand-written answer key:
  *       { "topic": "Describe a bug",
- *         "transcript": "...chép đúng từng chữ, giữ cả lỗi...",
+ *         "transcript": "...verbatim, mistakes included...",
  *         "issues": [ { "original_quote": "I fix it yesterday" } ] }
  *
- *   npm run eval:gemini                 # 1 lượt
- *   npm run eval:gemini -- --runs 2     # 2 lượt để xem độ ổn định
+ *   npm run eval:gemini                 # 1 run
+ *   npm run eval:gemini -- --runs 2     # 2 runs to check stability
  *
- * Kết quả: golden_samples/results/<thời gian>.json + bảng tóm tắt theo ngưỡng mục 4.
+ * Output: golden_samples/results/<timestamp>.json plus a summary vs. the plan thresholds.
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, extname, join } from 'node:path'
@@ -58,7 +58,7 @@ const words = (s: string) =>
         .split(/\s+/)
         .filter(Boolean)
 
-/** Word error rate đơn giản (Levenshtein theo từ). */
+/** Word error rate (word-level Levenshtein). */
 const wer = (ref: string, hyp: string) => {
     const r = words(ref)
     const h = words(hyp)
@@ -137,7 +137,7 @@ for (const file of clips) {
         try {
             parsed = speakingResultSchema.safeParse(JSON.parse(raw))
         } catch {
-            /* JSON hỏng */
+            /* invalid JSON */
         }
         const ok = parsed?.success ? parsed.data : null
         if (ok) validJson++

@@ -49,8 +49,7 @@ const callOnce = async (parts: Part[], schema: z.ZodType) => {
 }
 
 /**
- * Gọi Gemini và validate bằng Zod. JSON sai schema thì thử lại đúng 1 lần.
- * 429 không thử lại: báo QUOTA để client giữ bản nháp và hiện Copy prompt.
+ * Call Gemini and validate with Zod. Invalid JSON is retried once; 429 is not retried.
  */
 export const gradeWithGemini = async (input: GradeInput): Promise<GradeOutput> => {
     const schema = input.kind === 'speaking' ? speakingResultSchema : writingResultSchema

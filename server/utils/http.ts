@@ -3,7 +3,7 @@ import { getQuery, getRouterParam, readBody, type H3Event } from 'h3'
 import type { z } from 'zod'
 import type { ApiErrorCode } from '#shared/types'
 
-/** Lỗi có `data.code` để client biết nên hiện nút Copy prompt hay giữ bản nháp. */
+/** Error with `data.code` for the client. */
 export const apiError = (
     statusCode: number,
     code: ApiErrorCode,

@@ -52,7 +52,7 @@ const onRecorded = async (rec: Recording) => {
         createdAt: Date.now(),
         status: 'pending',
     }
-    // Lưu ngay khi dừng để mất mạng/đóng tab không mất bài.
+    // Persist right away so nothing is lost.
     await useLocalDb().audios.put(item)
     setCurrent(item)
 }

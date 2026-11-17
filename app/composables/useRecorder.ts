@@ -6,7 +6,7 @@ export interface Recording {
     blob: Blob
     mimeType: string
     durationS: number
-    /** Mức âm lớn nhất 0–1; quá thấp nghĩa là gần như không thu được tiếng. */
+    /** Peak level 0–1; near zero means silence. */
     peakLevel: number
 }
 

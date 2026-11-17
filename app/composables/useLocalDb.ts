@@ -1,6 +1,6 @@
 import Dexie, { type Table } from 'dexie'
 
-/** Audio chỉ nằm trên máy đã ghi. Bản ghi `pending` chính là hàng chờ gửi lại. */
+/** Audio stays on this device; `pending` rows are the retry queue. */
 export interface LocalAudio {
     /** = client_attempt_id */
     id: string
@@ -44,7 +44,7 @@ let _db: LocalDb | undefined
 export const useLocalDb = () => {
     if (!_db) {
         _db = new LocalDb()
-        // Xin trình duyệt hạn chế tự xoá dữ liệu; không đảm bảo, nên app vẫn không hứa giữ audio.
+        // Best effort: the browser may still evict data.
         navigator.storage?.persist?.().catch(() => {})
     }
     return _db

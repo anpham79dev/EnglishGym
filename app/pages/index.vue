@@ -13,7 +13,7 @@ const needBackup = computed(() => {
     try {
         last = Number(localStorage.getItem(LS_LAST_BACKUP) || 0)
     } catch {
-        /* bỏ qua */
+        /* ignore */
     }
     const isSunday = new Date().getDay() === 0
     return (isSunday && last < startOfToday()) || Date.now() - last > 8 * DAY_MS

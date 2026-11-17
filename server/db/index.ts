@@ -12,7 +12,7 @@ const createDb = () =>
     )
 
 export type Db = ReturnType<typeof createDb>
-/** Kiểu của `tx` trong db.transaction(), dùng chung cho service. */
+/** Transaction handle type for services. */
 export type Tx = Parameters<Parameters<Db['transaction']>[0]>[0]
 
 let _db: Db | undefined

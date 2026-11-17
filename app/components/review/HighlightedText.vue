@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { segmentText } from '#shared/utils/quote'
 
-/** Chỉ tô khi đoạn trích khớp văn bản gốc; không render HTML thô từ AI. */
+/** Highlights matched quotes only; never renders AI text as HTML. */
 const props = defineProps<{
     text: string
     issues: { index: number; quote: string; checked: boolean }[]

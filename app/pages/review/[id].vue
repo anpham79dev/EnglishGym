@@ -14,7 +14,7 @@ const { data, error, refresh } = await useAsyncData(`attempt-${id}`, async () =>
     return { detail, mistakes }
 })
 
-// Dựng lại form mỗi khi tải dữ liệu mới; scope riêng để dọn watcher của form cũ.
+// Rebuild the form on new data; own scope so old watchers are disposed.
 const form = shallowRef<ReturnType<typeof useReviewForm> | null>(null)
 let formScope: ReturnType<typeof effectScope> | null = null
 watch(
@@ -38,7 +38,7 @@ const topicText = computed(() => {
     return t ? `${t.title}. ${t.prompt}` : 'Free topic'
 })
 
-// Audio cục bộ: chỉ có trên máy đã ghi.
+// Local audio exists only on the recording device.
 const audioUrl = ref<string | null>(null)
 onMounted(async () => {
     if (!attempt.value || !isSpeaking.value) return
@@ -107,7 +107,7 @@ const retryAgain = () =>
                 style="width: 100%; margin-bottom: 12px"
             />
 
-            <!-- Đang xử lý / lỗi -->
+            <!-- Processing / failed -->
             <div
                 v-if="attempt.status === 'processing'"
                 class="card stack"
@@ -134,7 +134,7 @@ const retryAgain = () =>
                 />
             </template>
 
-            <!-- Duyệt -->
+            <!-- Review -->
             <template v-if="form">
                 <div class="card stack">
                     <div class="spread">
@@ -243,7 +243,7 @@ const retryAgain = () =>
                 </div>
             </template>
 
-            <!-- Đã xác nhận -->
+            <!-- Confirmed -->
             <template v-if="attempt.status === 'confirmed'">
                 <div class="card stack">
                     <h2>{{ isSpeaking ? 'Bản chép lời cuối' : 'Bài viết' }}</h2>

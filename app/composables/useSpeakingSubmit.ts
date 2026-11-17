@@ -2,7 +2,7 @@ import { submitSpeaking } from '~/api/attemptApi'
 import { shouldOfferManualPrompt, toApiFailure, type ApiFailure } from '~/api/http'
 import type { LocalAudio } from './useLocalDb'
 
-/** Gửi một bài nói trong IndexedDB; thành công thì đánh dấu `sent` và mở màn duyệt. */
+/** Submit a stored recording; on success mark it `sent` and open review. */
 export const useSpeakingSubmit = () => {
     const sending = ref(false)
     const failure = ref<ApiFailure | null>(null)

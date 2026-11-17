@@ -18,7 +18,7 @@ export interface EditableIssue {
     manual: boolean
 }
 
-/** Chỉ số cho lỗi tự thêm, tránh trùng issue_index của AI. */
+/** Manual issues start here to avoid clashing with AI indexes. */
 const MANUAL_INDEX_BASE = 1000
 
 const parseAi = (raw: string | null): AiResult | null => {
@@ -31,8 +31,7 @@ const parseAi = (raw: string | null): AiResult | null => {
 }
 
 /**
- * Trạng thái màn duyệt: mặc định tick lỗi có đoạn trích khớp,
- * bỏ tick sẵn lỗi không khớp hoặc nghi viết lại (plan mục 7, 11).
+ * Review screen state. Only matched, non-rewrite issues are pre-checked.
  */
 export const useReviewForm = (detail: AttemptDetail, known: Mistake[]) => {
     const { attempt } = detail
@@ -67,7 +66,7 @@ export const useReviewForm = (detail: AttemptDetail, known: Mistake[]) => {
         }),
     )
 
-    /** Khi sửa bản chép lời, kiểm tra lại đoạn trích nhưng không tự đổi tick. */
+    /** Re-match quotes on transcript edits without changing checkboxes. */
     watch(transcript, (text) => {
         for (const it of issues.value) it.matched = quoteExists(text, it.quote)
     })

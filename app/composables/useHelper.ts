@@ -6,7 +6,7 @@ export const startOfToday = () => {
     return d.getTime()
 }
 
-/** Số thứ tự ngày theo giờ địa phương, để xoay vòng đề mỗi ngày. */
+/** Local day index for daily topic rotation. */
 export const localDayIndex = () =>
     Math.floor((startOfToday() - new Date().getTimezoneOffset() * 60_000) / DAY_MS)
 

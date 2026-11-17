@@ -7,7 +7,7 @@ export interface ApiFailure {
     offline: boolean
 }
 
-/** Chuẩn hoá lỗi của $fetch để màn hình biết giữ nháp, báo lỗi hay hiện Copy prompt. */
+/** Normalize $fetch errors. */
 export const toApiFailure = (err: unknown): ApiFailure => {
     const e = err as {
         statusCode?: number
@@ -32,7 +32,7 @@ export const toApiFailure = (err: unknown): ApiFailure => {
     }
 }
 
-/** Các lỗi nên mời người dùng chấm thủ công bằng AI khác. */
+/** Errors where manual grading should be offered. */
 export const shouldOfferManualPrompt = (f: ApiFailure) =>
     f.code === 'QUOTA' ||
     f.code === 'DAILY_LIMIT' ||

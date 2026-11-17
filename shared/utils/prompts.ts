@@ -23,7 +23,7 @@ const MANUAL_FORMAT = `Answer with JSON only, in this shape:
 "reason_vi": "...", "category": "grammar|tense|article|preposition|word_choice|collocation|plural|subject_verb_agreement|word_order|spelling|other",
 "pattern_key_suggestion": "..."}], "focus_pattern_suggestion": "..."}`
 
-/** Prompt để dán vào AI khác khi Gemini lỗi hoặc hết quota. */
+/** Prompt to paste into another AI when Gemini fails. */
 export const buildManualPrompt = (kind: 'speaking' | 'writing', topic: string, text = '') =>
     kind === 'speaking'
         ? `${buildSpeakingPrompt(topic)}\n\n${MANUAL_FORMAT}\n(Đính kèm file audio cùng prompt này.)`

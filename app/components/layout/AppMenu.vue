@@ -14,7 +14,7 @@ const download = (format: 'json' | 'csv' | 'anki') => {
         try {
             localStorage.setItem(LS_LAST_BACKUP, String(Date.now()))
         } catch {
-            /* bỏ qua */
+            /* ignore */
         }
     }
     open.value = false

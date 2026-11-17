@@ -18,7 +18,7 @@ export const speakingResultSchema = writingResultSchema.extend({
     transcript: z.string().min(1),
 })
 
-/** JSON Schema gửi Gemini (responseJsonSchema). Bỏ các khoá Gemini không cần. */
+/** JSON Schema for Gemini `responseJsonSchema`, minus unsupported keys. */
 export const toGeminiSchema = (schema: z.ZodType): Record<string, unknown> => {
     const strip = (node: unknown): unknown => {
         if (Array.isArray(node)) return node.map(strip)

@@ -1,6 +1,6 @@
 /**
- * Tạo hoặc đổi mật khẩu tài khoản duy nhất.
- *   npm run user:create -- you@example.com "mat-khau-dai"
+ * Create the user or reset its password.
+ *   npm run user:create -- you@example.com "password"
  */
 import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'

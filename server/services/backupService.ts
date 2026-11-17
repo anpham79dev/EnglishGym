@@ -11,7 +11,7 @@ const TABLES = {
     mistake_hits: schema.mistakeHits,
 } as const
 type TableName = keyof typeof TABLES
-/** Thứ tự nhập để không vi phạm khoá ngoại. */
+/** FK-safe import order. */
 const IMPORT_ORDER: TableName[] = ['topics', 'attempts', 'mistakes', 'mistake_hits']
 
 export const countRecords = async () => {
@@ -42,7 +42,7 @@ const csvCell = (v: unknown) => {
     return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
 }
 
-/** BOM để Excel đọc đúng tiếng Việt. */
+/** BOM so Excel reads UTF-8. */
 export const toCsv = (rows: Record<string, unknown>[], columns: string[]) =>
     '﻿' +
     [columns.join(','), ...rows.map((r) => columns.map((c) => csvCell(r[c])).join(','))].join(
@@ -71,7 +71,7 @@ export const exportMistakesCsv = async () => {
     )
 }
 
-/** Anki: Front = câu sai + nhãn, Back = câu đúng. Nhập vào Anki với "Fields separated by: Comma". */
+/** Anki CSV: front = wrong + label, back = correction. */
 export const exportAnkiCsv = async () => {
     const rows = await useDb().select().from(schema.mistakes)
     const lines = rows.map((r) =>
@@ -93,8 +93,7 @@ const importSchema = z.object({
 })
 
 /**
- * Nhập lại file xuất. Bản ghi đã có (trùng id hoặc khoá unique) được giữ nguyên.
- * Trả về số bản ghi trước/sau để đối chiếu.
+ * Import an export file; existing rows are kept. Returns counts for verification.
  */
 export const importAll = async (input: unknown) => {
     const parsed = importSchema.safeParse(input)

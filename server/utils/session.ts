@@ -12,7 +12,7 @@ const secret = () => {
 
 const sign = (payload: string) => createHmac('sha256', secret()).update(payload).digest('base64url')
 
-/** Cookie dạng `<userId>.<expMs>.<hmac>`: không cần bảng sessions cho app một người dùng. */
+/** Stateless cookie `<userId>.<expMs>.<hmac>`. */
 export const setAuthCookie = (event: H3Event, userId: string) => {
     const payload = `${userId}.${Date.now() + MAX_AGE_S * 1000}`
     setCookie(event, COOKIE, `${payload}.${sign(payload)}`, {

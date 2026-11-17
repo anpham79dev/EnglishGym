@@ -4,9 +4,9 @@ import { useDb, schema } from '../db'
 import { geminiModel } from '../services/geminiService'
 
 const querySchema = z.object({
-    /** Mốc 0h hôm nay theo giờ máy người dùng (ms). */
+    /** Start of the user's local day (ms). */
     from: z.coerce.number().int().positive(),
-    /** Số thứ tự ngày, dùng để xoay vòng đề. */
+    /** Day index for topic rotation. */
     day: z.coerce.number().int().nonnegative(),
 })
 

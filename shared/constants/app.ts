@@ -5,7 +5,7 @@ export const MAX_AUDIO_BYTES = 3 * 1024 * 1024
 export const MAX_RECORD_SECONDS = 120
 export const MAX_WRITING_CHARS = 6000
 
-/** MIME gốc (bỏ ;codecs=) server chấp nhận. Bổ sung sau khi thử ở Buổi 0. */
+/** Base MIME types (without ;codecs) accepted by the server. */
 export const ALLOWED_AUDIO_MIME = [
     'audio/webm',
     'audio/ogg',
@@ -18,7 +18,7 @@ export const ALLOWED_AUDIO_MIME = [
     'audio/flac',
 ] as const
 
-/** Thứ tự ưu tiên khi dò bằng MediaRecorder.isTypeSupported(). */
+/** Preference order for MediaRecorder.isTypeSupported(). */
 export const RECORDER_MIME_CANDIDATES = [
     'audio/webm;codecs=opus',
     'audio/webm',

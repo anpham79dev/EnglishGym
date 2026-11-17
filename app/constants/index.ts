@@ -30,5 +30,5 @@ export const STATUS_LABELS: Record<AttemptStatus, string> = {
 }
 
 export const LS_LAST_BACKUP = 'eg:lastBackupAt'
-/** Ngưỡng mức âm: thấp hơn coi như không thu được tiếng. */
+/** Peak level below this means no voice was captured. */
 export const SILENCE_PEAK = 0.04

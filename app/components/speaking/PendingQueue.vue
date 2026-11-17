@@ -2,7 +2,7 @@
 import { liveQuery } from 'dexie'
 import type { LocalAudio } from '~/composables/useLocalDb'
 
-/** Hàng chờ: bài nói đã ghi nhưng chưa gửi được (mất mạng, 429…). Gửi lại dùng đúng client_attempt_id. */
+/** Unsent recordings; retries reuse the same client_attempt_id. */
 const emit = defineEmits<{ retry: [item: LocalAudio] }>()
 
 const items = ref<LocalAudio[]>([])

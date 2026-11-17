@@ -3,7 +3,7 @@ import { useDb, schema } from '../db'
 import { apiError } from './http'
 import { DAY_MS, hitCounter } from './rateLimit'
 
-/** Đếm lượt gọi Gemini trong ngày; vượt GEMINI_DAILY_LIMIT thì chặn trước khi gọi. */
+/** Enforce GEMINI_DAILY_LIMIT before calling Gemini. */
 export const consumeGeminiQuota = async () => {
     const limit = Number(process.env.GEMINI_DAILY_LIMIT || 40)
     const used = await hitCounter('gemini:day', DAY_MS)
