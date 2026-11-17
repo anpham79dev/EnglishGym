@@ -11,17 +11,19 @@ npm run dev                      # Nuxt dev server
 npm test                         # Vitest (tests/*.test.ts)
 npx vitest run tests/quote.test.ts          # single file
 npx vitest run -t "findQuote"               # single test by name
-npm run typecheck                # nuxt typecheck (vue-tsc via root tsconfig.json project references)
+npm run typecheck                # nuxt typecheck (root tsconfig.json references .nuxt/* + tsconfig.tools.json)
 npm run build                    # production build (Vercel preset auto-detected on Vercel)
 npm run format                   # Prettier: 4 spaces, no semicolons, single quotes, width 100
 npm run db:generate              # after editing server/db/schema.ts → new SQL in server/db/migrations
 npm run db:migrate               # apply migrations to DATABASE_URL (file:./data/local.db in dev, Turso in prod)
 npm run db:seed                  # idempotent topic seed (scripts/seed-topics.ts)
-npm run user:create -- <email> "<password ≥10 chars>"   # create the user or reset its password
+npm run user:create -- <email> "<password ≥8 chars>"   # create the user or reset its password
 npm run eval:gemini -- --runs 2  # "Buổi 0" Gemini evaluation against golden_samples/
 ```
 
-Scripts in `scripts/` run through `tsx` and load `.env` themselves. They import with relative paths, never `#shared`, because Nuxt aliases don't exist outside Nuxt. Any `shared/` file a script imports must also use relative imports only.
+Scripts in `scripts/` run through `tsx` and load `.env` themselves. They import with relative paths, never `#shared`, because Nuxt aliases don't exist outside Nuxt. Any `shared/` file a script imports must also use relative imports only. `drizzle.config.ts`, `scripts/` and `tests/` are type-checked by `tsconfig.tools.json` (Node types); Nuxt-generated tsconfigs don't cover them.
+
+Commits: use the project `commit` skill (`.claude/skills/commit`): one-line `type: message`, no author or Co-Authored-By lines.
 
 ## Architecture
 

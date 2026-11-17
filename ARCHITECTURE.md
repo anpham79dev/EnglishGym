@@ -46,6 +46,9 @@ Nguyên tắc chính:
 | Dùng chung | `shared/` | Hàm thuần, kiểu, hằng số, prompt, schema | Phụ thuộc Nuxt, DOM hay DB |
 | Script | `scripts/` | Tạo user, seed đề, Buổi 0 | Import qua alias `#shared` |
 
+Kiểm tra kiểu: `tsconfig.json` ở gốc tham chiếu các tsconfig Nuxt sinh trong `.nuxt/` (app, server,
+shared, node) và `tsconfig.tools.json` cho `drizzle.config.ts`, `scripts/`, `tests/` (có kiểu Node).
+
 Cách chia này học từ dự án CRM: client API tách theo domain (`api/*Queries.ts` → `app/api/*Api.ts`),
 trang mỏng, component chia theo tính năng.
 
@@ -161,7 +164,9 @@ nút tải audio cho bài nói) với 4 mã lỗi trên.
   của h3.
 - `server/middleware/auth.ts` chặn mọi `/api/*` trừ `/api/auth/login` và `/api/auth/me`.
   `app/middleware/auth.global.ts` chặn trang khi chưa đăng nhập.
-- Mật khẩu: `scrypt` của `node:crypto`, so sánh bằng `timingSafeEqual`.
+- Mật khẩu: tối thiểu 8 ký tự (kiểm tra trong `scripts/create-user.ts`), hash bằng `scrypt` của
+  `node:crypto`, so sánh bằng `timingSafeEqual`. Tài khoản chỉ tạo hoặc đổi mật khẩu qua script, không có
+  trang đăng ký.
 - Đăng nhập sai quá 5 lần trong 15 phút theo IP thì bị chặn (`rate_counters`).
 - Biến môi trường chỉ đọc qua `process.env` ở server, không dùng `runtimeConfig.public`.
 
