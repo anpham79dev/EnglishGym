@@ -38,6 +38,10 @@ export interface TodaySummary {
     /** Estimated JSON export size; above MAX_BACKUP_BYTES use npm run db:backup. */
     backupBytes: number
     streak: StreakSummary
+    /** N5: review cards due now. */
+    dueCards: number
+    /** N6: a weekly quiz was finished since Monday. */
+    quizDoneThisWeek: boolean
 }
 
 /** How to grade a submit: Gemini (default), self-review, or JSON pasted from another AI. */

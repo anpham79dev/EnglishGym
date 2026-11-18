@@ -4,6 +4,8 @@ import { useDb, schema } from '../db'
 import { geminiDailyLimit, geminiUsedToday } from '../utils/quota'
 import { geminiModel } from './geminiService'
 import { getStreak } from './streakService'
+import { countDue } from './cardService'
+import { dayKey, dayStart, weekStart } from '#shared/utils/streak'
 
 /**
  * Rough size of the JSON export (bytes), from column lengths instead of building the export.
@@ -20,6 +22,10 @@ export const estimateBackupBytes = async () => {
         + (SELECT coalesce(sum(${bytes('original_quote')} + ${bytes('correction')} + 200), 0)
                  FROM mistake_hits)
         + (SELECT coalesce(sum(${bytes('title')} + ${bytes('prompt')} + 150), 0) FROM topics)
+        + (SELECT count(*) * 330 FROM cards)
+        + (SELECT count(*) * 380 FROM review_logs)
+        + (SELECT coalesce(sum(${bytes('card_ids')} + 100), 0) FROM quizzes)
+        + (SELECT coalesce(sum(${bytes('note')} + 150), 0) FROM checkins)
           AS n`,
     )
     return Math.round(Number(res.rows[0]?.n ?? 0) * 1.1)
@@ -68,5 +74,10 @@ export const getTodaySummary = async (from: number, day: number, includeCheckins
         model: geminiModel(),
         backupBytes: await estimateBackupBytes(),
         streak: await getStreak(includeCheckins),
+        dueCards: await countDue(),
+        /** N6: a quiz was finished since Monday (app time). */
+        quizDoneThisWeek: !!(await db.query.quizzes.findFirst({
+            where: gte(schema.quizzes.finishedAt, dayStart(weekStart(dayKey(Date.now())))),
+        })),
     }
 }

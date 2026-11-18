@@ -1,11 +1,21 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
-import { NAV_ITEMS } from '~/constants'
+import { NAV_ITEMS, navMatches } from '~/constants'
 
-const items: NavigationMenuItem[] = [
-    ...NAV_ITEMS.map((i) => ({ label: i.label, icon: i.icon, to: i.to, exact: i.to === '/' })),
-    { label: 'Lịch sử', icon: 'i-lucide-history', to: '/history' },
-]
+const route = useRoute()
+const items = computed<NavigationMenuItem[][]>(() => [
+    NAV_ITEMS.map((i) => ({
+        label: i.label,
+        icon: i.icon,
+        to: i.to,
+        active: navMatches(i, route.path),
+    })),
+    [
+        { label: 'Lịch luyện tập', icon: 'i-lucide-calendar-days', to: '/calendar' },
+        { label: 'Lịch sử', icon: 'i-lucide-history', to: '/history' },
+        { label: 'Kho đề', icon: 'i-lucide-library', to: '/topics' },
+    ],
+])
 </script>
 
 <template>

@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { EXPORT_SCHEMA_VERSION } from '../../shared/constants/app'
 import { useDb, schema, type Tx } from '../db'
 import { validationError } from '../utils/http'
+import { rebalanceCards } from './cardService'
 import { recomputeMistake } from './mistakeService'
 
 const TABLES = {
@@ -11,11 +12,23 @@ const TABLES = {
     attempts: schema.attempts,
     mistakes: schema.mistakes,
     mistake_hits: schema.mistakeHits,
+    cards: schema.cards,
+    quizzes: schema.quizzes,
+    review_logs: schema.reviewLogs,
     checkins: schema.checkins,
 } as const
 type TableName = keyof typeof TABLES
 /** FK-safe import order. */
-const IMPORT_ORDER: TableName[] = ['topics', 'attempts', 'mistakes', 'mistake_hits', 'checkins']
+const IMPORT_ORDER: TableName[] = [
+    'topics',
+    'attempts',
+    'mistakes',
+    'mistake_hits',
+    'cards',
+    'quizzes',
+    'review_logs',
+    'checkins',
+]
 
 export const countRecords = async () => {
     const db = useDb()
@@ -37,6 +50,9 @@ export const exportAll = async () => {
         attempts: await db.select().from(schema.attempts),
         mistakes: await db.select().from(schema.mistakes),
         mistake_hits: await db.select().from(schema.mistakeHits),
+        cards: await db.select().from(schema.cards),
+        quizzes: await db.select().from(schema.quizzes),
+        review_logs: await db.select().from(schema.reviewLogs),
         checkins: await db.select().from(schema.checkins),
     }
 }
@@ -107,6 +123,10 @@ const importSchema = z.object({
     mistake_hits: z.array(z.record(z.string(), z.unknown())),
     // Added in schema_version 2; older files have none.
     checkins: z.array(z.record(z.string(), z.unknown())).default([]),
+    // Added in schema_version 3.
+    cards: z.array(z.record(z.string(), z.unknown())).default([]),
+    quizzes: z.array(z.record(z.string(), z.unknown())).default([]),
+    review_logs: z.array(z.record(z.string(), z.unknown())).default([]),
 })
 
 type Row = Record<string, unknown>
@@ -189,16 +209,81 @@ export const importAll = async (input: unknown) => {
         }
         await insertChunks(tx, 'mistakes', newMistakes)
 
-        // hits: re-point; unique (attempt_id, issue_index) skips hits already in the DB
+        // hits: re-point; a hit already in the DB (same attempt and issue index, any id) is
+        // mapped to that row so cards below never point to a hit that was skipped
+        const hitKey = (attemptId: string, issueIndex: unknown) => `${attemptId}|${issueIndex}`
+        const existingHits = new Map(
+            (
+                await tx
+                    .select({
+                        id: schema.mistakeHits.id,
+                        attemptId: schema.mistakeHits.attemptId,
+                        issueIndex: schema.mistakeHits.issueIndex,
+                    })
+                    .from(schema.mistakeHits)
+            ).map((x) => [hitKey(x.attemptId, x.issueIndex), x.id]),
+        )
+        const hitIds = new Map<string, string>()
         const touched = new Set<string>()
-        const hits = data.mistake_hits.map((row) => {
+        const newHits: Row[] = []
+        for (const row of data.mistake_hits) {
             const mistakeId = mistakeIds.get(String(row.mistakeId)) ?? String(row.mistakeId)
             const attemptId = attemptIds.get(String(row.attemptId)) ?? String(row.attemptId)
+            const key = hitKey(attemptId, row.issueIndex)
+            const existingId = existingHits.get(key)
+            if (existingId) {
+                hitIds.set(String(row.id), existingId)
+                continue
+            }
+            hitIds.set(String(row.id), String(row.id))
+            existingHits.set(key, String(row.id))
             touched.add(mistakeId)
-            return { ...row, mistakeId, attemptId }
-        })
-        await insertChunks(tx, 'mistake_hits', hits)
+            newHits.push({ ...row, mistakeId, attemptId })
+        }
+        await insertChunks(tx, 'mistake_hits', newHits)
         for (const id of touched) await recomputeMistake(tx, id)
+
+        // cards: one per hit; a hit that already has a card keeps the card in the DB
+        const cardByHit = new Map(
+            (
+                await tx
+                    .select({ id: schema.cards.id, hitId: schema.cards.hitId })
+                    .from(schema.cards)
+            ).map((x) => [x.hitId, x.id]),
+        )
+        const cardIds = new Map<string, string>()
+        const newCards: Row[] = []
+        for (const row of data.cards) {
+            const hitId = hitIds.get(String(row.hitId)) ?? String(row.hitId)
+            const existingId = cardByHit.get(hitId)
+            if (existingId) {
+                cardIds.set(String(row.id), existingId)
+                continue
+            }
+            cardIds.set(String(row.id), String(row.id))
+            cardByHit.set(hitId, String(row.id))
+            newCards.push({ ...row, hitId })
+        }
+        await insertChunks(tx, 'cards', newCards)
+
+        const mapCard = (id: unknown) => cardIds.get(String(id)) ?? String(id)
+        await insertChunks(
+            tx,
+            'quizzes',
+            data.quizzes.map((row) => ({
+                ...row,
+                cardIds: JSON.stringify(
+                    (JSON.parse(String(row.cardIds ?? '[]')) as string[]).map(mapCard),
+                ),
+            })),
+        )
+        await insertChunks(
+            tx,
+            'review_logs',
+            data.review_logs.map((row) => ({ ...row, cardId: mapCard(row.cardId) })),
+        )
+        const allMistakes = await tx.select({ id: schema.mistakes.id }).from(schema.mistakes)
+        for (const { id } of allMistakes) await rebalanceCards(tx, id)
 
         await insertChunks(tx, 'checkins', data.checkins)
     })

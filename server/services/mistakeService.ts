@@ -5,6 +5,7 @@ import type { AttemptKind, MistakeWithHits } from '#shared/types'
 // Relative import: backupService (and so this file) also runs in scripts outside Nuxt.
 import { toPatternKey } from '../../shared/utils/patternKey'
 import { useDb, schema, type Db, type Tx } from '../db'
+import { rebalanceCards } from './cardService'
 
 const m = schema.mistakes
 const h = schema.mistakeHits
@@ -107,6 +108,7 @@ export const mergeMistake = async (id: string, targetId: string) => {
             .where(eq(m.id, target.id))
         await tx.delete(m).where(eq(m.id, id))
         await recomputeMistake(tx, target.id)
+        await rebalanceCards(tx, target.id)
     })
     return findMistake(id)
 }
@@ -145,6 +147,8 @@ export const splitMistake = async (id: string, split: MistakeSplit) => {
                 .where(eq(m.id, target!.id))
         await recomputeMistake(tx, target!.id)
         await recomputeMistake(tx, id)
+        await rebalanceCards(tx, target!.id)
+        await rebalanceCards(tx, id)
     })
     return findMistake(id)
 }

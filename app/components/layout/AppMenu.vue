@@ -19,6 +19,9 @@ const TABLE_LABELS: Record<keyof ImportResult['after'], string> = {
     attempts: 'Bài nộp',
     mistakes: 'Kiểu lỗi',
     mistake_hits: 'Lần mắc',
+    cards: 'Thẻ ôn',
+    quizzes: 'Bài kiểm tra',
+    review_logs: 'Lần ôn',
     checkins: 'Điểm danh',
 }
 

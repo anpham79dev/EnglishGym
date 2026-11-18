@@ -1,6 +1,9 @@
 export const PROMPT_VERSION = 'v1'
-/** 2: topics.tags/created_at, attempts.source, mistakes.note, checkins. */
-export const EXPORT_SCHEMA_VERSION = 2
+/**
+ * 2: topics.tags/created_at, attempts.source, mistakes.note, checkins.
+ * 3: cards, review_logs, quizzes.
+ */
+export const EXPORT_SCHEMA_VERSION = 3
 
 export const MAX_AUDIO_BYTES = 3 * 1024 * 1024
 export const MAX_RECORD_SECONDS = 120
@@ -16,6 +19,11 @@ export const APP_UTC_OFFSET_MIN = 420
 export const DEFAULT_GEMINI_DAILY_LIMIT = 10
 /** Max size of JSON pasted from another AI. */
 export const MAX_PASTED_JSON_CHARS = 50_000
+/** Active review cards per mistake pattern (N5); extra cards stay suspended. */
+export const MAX_ACTIVE_CARDS_PER_MISTAKE = 3
+/** Cards per weekly quiz (N6). */
+export const QUIZ_SIZE = 12
+
 /** Weekly practice goal (days, Monday to Sunday). */
 export const WEEKLY_GOAL_DAYS = 5
 

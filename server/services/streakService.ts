@@ -5,15 +5,10 @@ import { z } from 'zod'
 import type { AttemptKind, Checkin } from '#shared/types'
 import { addDays, dayKey, dayStart, summarizeStreak } from '#shared/utils/streak'
 import { useDb, schema } from '../db'
+import { reviewTimes } from './cardService'
 
 const a = schema.attempts
 const c = schema.checkins
-
-/** Hook for other practice sources (card reviews, N5) to count toward the streak. */
-const extraDaySources: (() => Promise<string[]>)[] = []
-export const registerPracticeDays = (source: () => Promise<string[]>) => {
-    extraDaySources.push(source)
-}
 
 /**
  * Days with practice, in app time. An attempt counts on the day it was submitted, and only
@@ -27,7 +22,8 @@ export const practiceDays = async (includeCheckins = true) => {
         .where(eq(a.status, 'confirmed'))
     const days = new Set(confirmed.map((r) => dayKey(r.createdAt)))
     if (includeCheckins) for (const r of await db.select({ date: c.date }).from(c)) days.add(r.date)
-    for (const source of extraDaySources) for (const d of await source()) days.add(d)
+    // Reviewing cards (N5) is practice too.
+    for (const t of await reviewTimes()) days.add(dayKey(t))
     return days
 }
 
@@ -41,14 +37,6 @@ export interface CalendarDay {
     reviews: number
     attempts: { id: string; kind: AttemptKind; topicTitle: string | null; version: number }[]
     checkins: Checkin[]
-}
-
-const reviewCounters: ((from: number, to: number) => Promise<Map<string, number>>)[] = []
-/** Hook for N5: number of card reviews per day key in [from, to). */
-export const registerReviewCounter = (
-    counter: (from: number, to: number) => Promise<Map<string, number>>,
-) => {
-    reviewCounters.push(counter)
 }
 
 /** Every day of a month (YYYY-MM) with confirmed attempts, reviews and check-ins. */
@@ -79,8 +67,10 @@ export const getCalendarMonth = async (month: string) => {
         .where(and(gte(c.date, first), lt(c.date, next)))
         .orderBy(asc(c.createdAt))
     const reviews = new Map<string, number>()
-    for (const counter of reviewCounters)
-        for (const [k, n] of await counter(from, to)) reviews.set(k, (reviews.get(k) ?? 0) + n)
+    for (const t of await reviewTimes(from, to - 1)) {
+        const k = dayKey(t)
+        reviews.set(k, (reviews.get(k) ?? 0) + 1)
+    }
 
     const days: CalendarDay[] = []
     for (let d = first; d < next; d = addDays(d, 1)) {

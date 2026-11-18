@@ -16,6 +16,7 @@
         "db:seed": "tsx scripts/seed-topics.ts",
         "db:backup": "tsx scripts/backup.ts",
         "db:restore": "tsx scripts/restore.ts",
+        "db:backfill-cards": "tsx scripts/backfill-cards.ts",
         "user:create": "tsx scripts/create-user.ts",
         "eval:gemini": "tsx scripts/gemini-eval.ts"
     },
@@ -28,6 +29,7 @@
         "drizzle-orm": "0.45.4",
         "nuxt": "4.6.4",
         "tailwindcss": "4.3.3",
+        "ts-fsrs": "6.0.0",
         "vue": "3.5.45",
         "vue-router": "5.5.1",
         "zod": "4.6.7"
@@ -42,6 +44,6 @@
         "vue-tsc": "3.3.14"
     },
     "engines": {
-        "node": ">=22"
+        "node": ">=24"
     }
 }

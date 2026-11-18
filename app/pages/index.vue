@@ -63,6 +63,11 @@ const geminiLow = computed(
     () => !!data.value && data.value.geminiUsedToday >= data.value.geminiDailyLimit * 0.7,
 )
 
+/** N6: remind on Sunday (with the backup reminder) until this week's quiz is done. */
+const quizDue = computed(
+    () => !!data.value && new Date().getDay() === 0 && !data.value.quizDoneThisWeek,
+)
+
 const retry = (item: LocalAudio) => send(item)
 </script>
 
@@ -96,6 +101,41 @@ const retry = (item: LocalAudio) => send(item)
             <StreakCard
                 :streak="data.streak"
                 @changed="refresh()"
+            />
+
+            <UCard v-if="data.dueCards">
+                <div class="flex items-center gap-3">
+                    <span
+                        class="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"
+                    >
+                        <UIcon
+                            name="i-lucide-repeat"
+                            class="size-5"
+                            aria-hidden="true"
+                        />
+                    </span>
+                    <div class="flex-1">
+                        <p class="font-semibold text-highlighted">
+                            {{ data.dueCards }} thẻ đến hạn
+                        </p>
+                        <p class="text-xs text-muted">Ôn lại những câu bạn từng sai.</p>
+                    </div>
+                    <UButton
+                        to="/drill"
+                        icon="i-lucide-play"
+                        label="Ôn ngay"
+                    />
+                </div>
+            </UCard>
+
+            <UAlert
+                v-if="quizDue"
+                color="primary"
+                variant="subtle"
+                icon="i-lucide-clipboard-check"
+                title="Chủ nhật: làm bài kiểm tra tuần"
+                description="12 câu từ những lỗi bạn hay sai nhất, mất khoảng 5 phút."
+                :actions="[{ label: 'Làm ngay', to: '/quiz', icon: 'i-lucide-play' }]"
             />
 
             <div class="grid gap-4 sm:grid-cols-2">

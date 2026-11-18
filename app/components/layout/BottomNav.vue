@@ -1,8 +1,12 @@
 <script setup lang="ts">
-import { NAV_ITEMS } from '~/constants'
+import { NAV_ITEMS, navMatches } from '~/constants'
 
 const route = useRoute()
-const isActive = (to: string) => (to === '/' ? route.path === '/' : route.path.startsWith(to))
+const isActive = (to: string) =>
+    navMatches(
+        NAV_ITEMS.find((i) => i.to === to)!,
+        route.path,
+    )
 </script>
 
 <template>

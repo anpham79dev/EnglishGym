@@ -28,6 +28,9 @@ const confirmed = async (keys: string[], quote = 'I goed') => {
 
 const wipe = async () => {
     const db = useDb()
+    await db.delete(schema.reviewLogs)
+    await db.delete(schema.quizzes)
+    await db.delete(schema.cards)
     await db.delete(schema.mistakeHits)
     await db.delete(schema.mistakes)
     await db.delete(schema.attempts)

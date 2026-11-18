@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import { index, integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
 const now = sql`(unixepoch() * 1000)`
 
@@ -90,6 +90,76 @@ export const mistakeHits = sqliteTable(
     (t) => [
         uniqueIndex('mistake_hits_attempt_issue_uq').on(t.attemptId, t.issueIndex),
         index('mistake_hits_mistake_idx').on(t.mistakeId),
+    ],
+)
+
+/**
+ * Review card (N5): one per confirmed mistake hit, so merging or splitting patterns keeps it.
+ * FSRS state mirrors ts-fsrs 6 (FSRS-7) card fields; times are ms like every other table.
+ */
+export const cards = sqliteTable(
+    'cards',
+    {
+        id: text('id').primaryKey(),
+        hitId: text('hit_id')
+            .notNull()
+            .unique()
+            .references(() => mistakeHits.id),
+        dueAt: integer('due_at').notNull(),
+        stability: real('stability').notNull().default(0),
+        stabilityFast: real('stability_fast').notNull().default(0),
+        difficulty: real('difficulty').notNull().default(0),
+        /** ts-fsrs State: 0 New, 1 Learning, 2 Review, 3 Relearning. */
+        state: integer('state').notNull().default(0),
+        scheduleStatus: text('schedule_status').notNull().default('new'),
+        lastReviewAt: integer('last_review_at'),
+        reps: integer('reps').notNull().default(0),
+        lapses: integer('lapses').notNull().default(0),
+        scheduledDays: real('scheduled_days').notNull().default(0),
+        learningStep: integer('learning_step').notNull().default(0),
+        /** At most 3 active cards per mistake pattern; the rest wait here. */
+        suspended: integer('suspended', { mode: 'boolean' }).notNull().default(false),
+        createdAt: integer('created_at').notNull(),
+    },
+    (t) => [index('cards_due_idx').on(t.suspended, t.dueAt)],
+)
+
+/** Weekly quiz (N6): a fixed set of cards, score = share of Good + Easy. */
+export const quizzes = sqliteTable('quizzes', {
+    id: text('id').primaryKey(),
+    createdAt: integer('created_at').notNull(),
+    /** JSON array of card ids, in quiz order. */
+    cardIds: text('card_ids').notNull(),
+    finishedAt: integer('finished_at'),
+    score: real('score'),
+})
+
+/** One row per card review; pre-review state as returned by ts-fsrs as the revlog. */
+export const reviewLogs = sqliteTable(
+    'review_logs',
+    {
+        id: text('id').primaryKey(),
+        cardId: text('card_id')
+            .notNull()
+            .references(() => cards.id),
+        /** 1 Again, 2 Hard, 3 Good, 4 Easy. */
+        rating: integer('rating').notNull(),
+        state: integer('state').notNull(),
+        scheduleStatus: text('schedule_status').notNull(),
+        dueAt: integer('due_at').notNull(),
+        stability: real('stability').notNull(),
+        stabilityFast: real('stability_fast').notNull(),
+        difficulty: real('difficulty').notNull(),
+        scheduledDays: real('scheduled_days').notNull(),
+        learningStep: integer('learning_step').notNull(),
+        lastReviewAt: integer('last_review_at'),
+        reviewedAt: integer('reviewed_at').notNull(),
+        isQuiz: integer('is_quiz', { mode: 'boolean' }).notNull().default(false),
+        quizId: text('quiz_id').references(() => quizzes.id),
+    },
+    (t) => [
+        index('review_logs_card_idx').on(t.cardId),
+        index('review_logs_time_idx').on(t.reviewedAt),
     ],
 )
 

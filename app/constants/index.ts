@@ -7,12 +7,21 @@ import type {
 } from '#shared/types'
 
 /** Icons are Lucide names only (no emoji or symbol characters anywhere in the UI). */
-export const NAV_ITEMS = [
-    { to: '/', label: 'Hôm nay', icon: 'i-lucide-house' },
-    { to: '/speaking', label: 'Luyện nói', icon: 'i-lucide-mic' },
-    { to: '/writing', label: 'Luyện viết', icon: 'i-lucide-pen-line' },
-    { to: '/mistakes', label: 'Sổ lỗi', icon: 'i-lucide-notebook-pen' },
-] as const
+export const NAV_ITEMS: { to: string; label: string; icon: string; match: string[] }[] = [
+    { to: '/', label: 'Hôm nay', icon: 'i-lucide-house', match: ['/'] },
+    {
+        to: '/practice',
+        label: 'Luyện',
+        icon: 'i-lucide-dumbbell',
+        match: ['/practice', '/speaking', '/writing', '/review'],
+    },
+    { to: '/drill', label: 'Ôn', icon: 'i-lucide-repeat', match: ['/drill', '/quiz'] },
+    { to: '/mistakes', label: 'Sổ lỗi', icon: 'i-lucide-notebook-pen', match: ['/mistakes'] },
+]
+
+/** True when `path` belongs to a nav item (exact for "/", prefix otherwise). */
+export const navMatches = (item: (typeof NAV_ITEMS)[number], path: string) =>
+    item.match.some((m) => (m === '/' ? path === '/' : path === m || path.startsWith(`${m}/`)))
 
 export const KIND_ICONS: Record<AttemptKind, string> = {
     speaking: 'i-lucide-mic',

@@ -6,6 +6,7 @@ import type { Attempt, AttemptKind, AttemptSource, ConfirmBody } from '#shared/t
 import { toPatternKey } from '#shared/utils/patternKey'
 import { useDb, schema } from '../db'
 import { apiError } from '../utils/http'
+import { createCardsForHits, rebalanceCards } from './cardService'
 import { recomputeMistake } from './mistakeService'
 import type { GradeOutput } from './geminiService'
 
@@ -211,6 +212,7 @@ export const confirmAttempt = async (id: string, body: ConfirmBody): Promise<Att
     const now = Date.now()
     await db.transaction(async (tx) => {
         const touched = new Set<string>()
+        const newHits: string[] = []
         for (const issue of body.issues) {
             const patternKey = toPatternKey(issue.patternKey)
             let mistake = await tx.query.mistakes.findFirst({
@@ -232,7 +234,7 @@ export const confirmAttempt = async (id: string, body: ConfirmBody): Promise<Att
                     })
                     .returning()
             }
-            await tx
+            const inserted = await tx
                 .insert(schema.mistakeHits)
                 .values({
                     id: randomUUID(),
@@ -243,9 +245,14 @@ export const confirmAttempt = async (id: string, body: ConfirmBody): Promise<Att
                     correction: issue.correction,
                 })
                 .onConflictDoNothing()
+                .returning({ id: schema.mistakeHits.id })
+            newHits.push(...inserted.map((r) => r.id))
             touched.add(mistake!.id)
         }
         for (const mistakeId of touched) await recomputeMistake(tx, mistakeId)
+        // N5: every newly confirmed hit becomes a review card, inside the same transaction.
+        await createCardsForHits(tx, newHits, now)
+        for (const mistakeId of touched) await rebalanceCards(tx, mistakeId)
 
         await tx
             .update(t)
