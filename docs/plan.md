@@ -189,7 +189,7 @@ Alpha chỉ cần 6 bảng. Gộp bài nói và bài viết vào một bảng `a
 | --- | --- | --- |
 | `users` | id, email, password\_hash, created\_at | Một tài khoản duy nhất là bạn |
 | `topics` | id, kind (speaking/writing), title, prompt, level, active | Kho đề, sửa tay được |
-| `attempts` | id, client\_attempt\_id (unique), kind, topic\_id, attempt\_group\_id, version, status, text\_or\_transcript, final\_transcript, duration\_s, mime\_type, model, prompt\_version, ai\_json, created\_at | `status`: draft, processing, needs\_review, confirmed, failed |
+| `attempts` | id, client\_attempt\_id (unique), kind, topic\_id, attempt\_group\_id, version, status, text\_or\_transcript, final\_transcript, duration\_s, mime\_type, model, prompt\_version, ai\_json, processing\_at, created\_at | `status`: processing, needs\_review, confirmed, failed |
 | `mistakes` | id, pattern\_key, label\_vi, example\_wrong, example\_right, category, first\_seen, last\_seen, hit\_count, is\_focus | Mỗi dòng là một kiểu lỗi, không phải một lần sai |
 | `mistake_hits` | id, mistake\_id, attempt\_id, issue\_index, original\_quote, correction | Unique (attempt\_id, issue\_index) để xác nhận hai lần vẫn không đếm trùng |
 | `rate_counters` | key, window\_start, count | Giới hạn đăng nhập và lượt gọi Gemini, xem mục 8 |
@@ -258,7 +258,7 @@ App chỉ có một người dùng là bạn, nên bảo mật làm vừa đủ,
 
 Không bật thanh toán. Nếu sau này cần thì đặt cảnh báo ngân sách trước.
 
-**Sao lưu:** xuất JSON mỗi Chủ nhật (app nhắc). Trước khi tin vào bản sao lưu, thử ít nhất một lần: xuất, xóa database test, nhập lại, đối chiếu số bản ghi. File xuất có `schema_version`.
+**Sao lưu:** xuất JSON mỗi Chủ nhật (app nhắc). Trước khi tin vào bản sao lưu, thử ít nhất một lần: xuất, xóa database test, nhập lại, đối chiếu số bản ghi. File xuất có `schema_version`. Vercel giới hạn body 4,5 MB: khi dữ liệu lớn hơn 4 MB, app báo lỗi rõ ràng và dùng `npm run db:backup` / `npm run db:restore` chạy trên máy.
 
 ## 9. Lộ trình build và ước lượng giờ
 

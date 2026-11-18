@@ -42,4 +42,6 @@ Các lệnh khác:
 npm test                    # chạy test
 npm run typecheck           # kiểm tra kiểu
 npm run build               # build production
+npm run db:backup           # sao lưu JSON thẳng từ DATABASE_URL, không giới hạn dung lượng
+npm run db:restore -- <file.json>   # nhập lại file sao lưu (giữ dữ liệu đang có)
 ```

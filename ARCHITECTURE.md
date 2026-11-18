@@ -77,6 +77,7 @@ Các trường của `attempts` cần chú ý:
 - `text_or_transcript`: bài viết gốc, hoặc bản chép lời do AI tạo.
 - `final_transcript`: bản người dùng đã sửa và chốt khi xác nhận.
 - `model`, `prompt_version`: để so sánh khi đổi model hoặc prompt.
+- `processing_at`: lần gần nhất chuyển sang `processing`, dùng để phát hiện bài chấm bị kẹt.
 
 Thời gian lưu dạng mili-giây (`integer`). Mọi khoá chính là UUID dạng text, nhờ vậy xuất/nhập không bị
 xung đột id.
@@ -86,10 +87,10 @@ xung đột id.
 ```text
             nộp (client_attempt_id)
                     │
-        ┌───────────▼───────────┐   đã có & không failed → trả lại bản ghi cũ (không gọi Gemini)
-        │      processing       │
-        └───────────┬───────────┘
-          Gemini OK │   Gemini lỗi / quota / JSON sai 2 lần
+        ┌───────────▼───────────┐   đã chấm (needs_review/confirmed) → trả lại bản ghi cũ
+        │      processing       │   đang chấm < 2 phút → 409 IN_PROGRESS
+        └───────────┬───────────┘   kẹt > 2 phút (function bị dừng) → chấm lại như failed
+          Gemini OK │   Gemini lỗi / quota / quá 25 giây / JSON sai 2 lần
         ┌───────────▼───────┐   ┌────────────┐
         │   needs_review    │   │   failed   │ ── nộp lại cùng client_attempt_id → processing
         └───────────┬───────┘   └────────────┘
@@ -99,6 +100,13 @@ xung đột id.
         └───────────────────┘
 ```
 
+- Mỗi lần chuyển sang `processing` ghi `processing_at`; `PROCESSING_STALE_MS` (2 phút) quyết định khi
+  nào coi row là kẹt. Lệnh nhận lại row là `UPDATE` có điều kiện, nên hai request song song không cùng
+  chấm. Hai request cùng tạo mới thì request thua vi phạm unique và nhận 409 `IN_PROGRESS`.
+- Mỗi lần gọi Gemini có timeout `GEMINI_TIMEOUT_MS` (25 giây). Hết giờ thì báo `AI_TIMEOUT`, không gọi lại.
+- Hạn mức ngày (`consumeGeminiQuota`) được đếm trước **mỗi** lần gọi, kể cả lần gọi lại vì JSON sai, và
+  reset lúc 0h giờ Việt Nam (`APP_UTC_OFFSET_MIN`).
+
 ### 4.1 Luyện nói
 
 1. `useRecorder` dò định dạng bằng `MediaRecorder.isTypeSupported()` (thứ tự ưu tiên trong
@@ -107,14 +115,17 @@ xung đột id.
    `status: 'pending'` và một `client_attempt_id` mới.
 3. `useSpeakingSubmit` gửi multipart tới `POST /api/attempts/speaking`.
 4. Route kiểm tra `content-length`, kích thước, MIME gốc (bỏ `;codecs`) và đề, rồi gọi
-   `submitAttempt` với hàm chấm `consumeGeminiQuota → gradeWithGemini`.
-5. Thành công: IndexedDB đổi sang `sent` và lưu `attemptId`, sau đó chuyển tới `/review/:id`.
+   `submitAttempt` với hàm chấm `gradeWithGemini(…, { beforeCall: consumeGeminiQuota })`.
+5. Chỉ khi server trả bài đã chấm (`needs_review` hoặc `confirmed`), IndexedDB mới đổi sang `sent` và
+   lưu `attemptId`, sau đó chuyển tới `/review/:id`.
    Thất bại: bài giữ nguyên `pending` kèm `lastError`, hiện trong mục "Chưa gửi" để gửi lại.
 
 ### 4.2 Luyện viết
 
 Bản nháp nằm trong IndexedDB (`drafts`, id `current`) và tự lưu sau 400 ms. Mã lượt nộp được tạo cùng
-bản nháp và giữ nguyên tới khi nộp thành công, nên gửi lại sau lỗi không tạo lượt trùng.
+bản nháp và giữ nguyên tới khi nộp thành công, nên gửi lại sau lỗi không tạo lượt trùng. Nếu sửa chữ
+sau một lần nộp lỗi thì tạo mã mới, để server không trả lại kết quả của bản cũ (trừ lỗi `IN_PROGRESS`).
+Bản nháp chỉ bị xoá khi bài đã chấm xong.
 "Viết phiên bản mới" mở `/writing?from=<id>`, giữ `attempt_group_id`; server tự tăng `version`.
 
 ### 4.3 Duyệt và xác nhận
@@ -186,10 +197,20 @@ nhưng không hứa giữ audio, vì trình duyệt vẫn có thể tự xoá. M
 
 - `GET /api/export?format=json`: mọi bảng trừ `users` và `rate_counters`, kèm `schema_version` và số bản ghi.
 - `format=csv`: sổ lỗi, có BOM để Excel đọc đúng tiếng Việt.
-- `format=anki`: CSV có header `#separator`, `#html`, `#tags column` để nhập thẳng vào Anki.
+- `format=anki`: CSV có header `#separator`, `#html`, `#tags column` để nhập thẳng vào Anki. Các trường
+  được escape HTML.
 - `POST /api/import`: nhập theo thứ tự khoá ngoại `topics → attempts → mistakes → mistake_hits`, theo lô
-  50 dòng, trong một transaction, `onConflictDoNothing`. Trả về số bản ghi trước, sau và trong file để
-  đối chiếu.
+  50 dòng, trong một transaction, `onConflictDoNothing`. Gộp được vào DB đã có dữ liệu:
+  - attempt khớp theo `client_attempt_id`, mistake khớp theo `pattern_key`; hit được trỏ lại sang id
+    trong DB nên không có hit mồ côi
+  - `hit_count`, `first_seen`, `last_seen` được tính lại bằng `recomputeMistake`
+  - DB đã có lỗi trọng tâm thì giữ lỗi đó
+  - trả về số bản ghi trước, sau, trong file và số dòng bỏ qua.
+- Vercel giới hạn body 4,5 MB. Export JSON lớn hơn `MAX_BACKUP_BYTES` (4 MB) trả 413 `TOO_LARGE`, menu
+  nhập chặn file lớn hơn mức này. Khi đó dùng script chạy trên máy, đọc ghi thẳng `DATABASE_URL`:
+  `npm run db:backup` (ghi `backups/englishgym-YYYY-MM-DD.json`) và `npm run db:restore -- <file>` (cùng
+  logic với `importAll`). `backupService.ts` và `mistakeService.ts` import `shared/` bằng đường dẫn
+  tương đối vì script chạy ngoài Nuxt.
 
 Đổi cấu trúc file xuất thì tăng `EXPORT_SCHEMA_VERSION`.
 

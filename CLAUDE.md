@@ -17,11 +17,15 @@ npm run format                   # Prettier: 4 spaces, no semicolons, single quo
 npm run db:generate              # after editing server/db/schema.ts → new SQL in server/db/migrations
 npm run db:migrate               # apply migrations to DATABASE_URL (file:./data/local.db in dev, Turso in prod)
 npm run db:seed                  # idempotent topic seed (scripts/seed-topics.ts)
+npm run db:backup                # JSON backup straight from DATABASE_URL (no Vercel 4.5 MB limit)
+npm run db:restore -- <file>     # import a backup via importAll (merges, keeps existing rows)
 npm run user:create -- <email> "<password ≥8 chars>"   # create the user or reset its password
 npm run eval:gemini -- --runs 2  # "Buổi 0" Gemini evaluation against golden_samples/
 ```
 
-Scripts in `scripts/` run through `tsx` and load `.env` themselves. They import with relative paths, never `#shared`, because Nuxt aliases don't exist outside Nuxt. Any `shared/` file a script imports must also use relative imports only. `drizzle.config.ts`, `scripts/` and `tests/` are type-checked by `tsconfig.tools.json` (Node types); Nuxt-generated tsconfigs don't cover them.
+Scripts in `scripts/` run through `tsx` and load `.env` themselves. They import with relative paths, never `#shared`, because Nuxt aliases don't exist outside Nuxt. Any `shared/` file a script imports must also use relative imports only. The same goes for runtime imports in server files the backup scripts pull in (`backupService.ts`, `mistakeService.ts`, `server/utils/http.ts`); type-only `#shared` imports are fine there because they are erased.
+
+Tests: `vitest.config.ts` maps `#shared` and pins `vitest` to one copy (on Windows a lower-case drive letter in the cwd otherwise loads it twice and every suite fails with "reading 'config'"). Service tests use `tests/helpers/db.ts`: a migrated SQLite file per test file (not `:memory:`, which breaks under libsql transactions), rows wiped before each test, and `fakeGrade()` instead of Gemini. `drizzle.config.ts`, `scripts/` and `tests/` are type-checked by `tsconfig.tools.json` (Node types); Nuxt-generated tsconfigs don't cover them.
 
 Commits: use the project `commit` skill (`.claude/skills/commit`): one-line `type: message`, no author or Co-Authored-By lines.
 
@@ -39,7 +43,7 @@ Nuxt 4 full-stack app in SPA mode (`ssr: false`), because MediaRecorder and Inde
   - `patternKey.ts`
 
   Changing a prompt means bumping `PROMPT_VERSION` in `shared/constants/app.ts`. Every attempt stores `model` and `prompt_version`.
-- `server/api/*` routes stay thin: validate with Zod (`parseBody`/`parseQuery` in `server/utils/http.ts`), then call `server/services/*`. Services import h3 helpers explicitly instead of relying on Nitro auto-imports.
+- `server/api/*` routes stay thin: validate with Zod (`parseBody`/`parseQuery`/`validationError` in `server/utils/http.ts`), then call `server/services/*`. Routes that only read one table (`topics.get`, `auth/*`) may query directly. Routes use Nitro auto-imports; services and `server/utils` import h3 helpers and each other explicitly.
 - `app/api/*` contains the client fetch functions, one file per domain (this layout follows the user's CRM project). Pages stay thin; feature components live in `app/components/<feature>/` and are auto-imported with a folder prefix (e.g. `<SpeakingRecorderPanel>`).
 
 ### Core flow and invariants
@@ -48,11 +52,15 @@ Nuxt 4 full-stack app in SPA mode (`ssr: false`), because MediaRecorder and Inde
    - An existing row that is not `failed` is returned as is, without calling Gemini again.
    - A `failed` row is re-graded in place.
 
+   - A `processing` row younger than `PROCESSING_STALE_MS` (2 min, from `processing_at`) returns 409 `IN_PROGRESS`; an older one is treated as dead and re-graded. Claiming a row is a conditional UPDATE, so parallel requests can't both grade.
+   - The client only treats `needs_review`/`confirmed` as done (marks audio `sent`, deletes the draft).
+
    Statuses: `processing → needs_review | failed → confirmed`.
 2. **Grading** (`geminiService.ts`):
    - JSON that fails schema validation is retried exactly once, then the error is `INVALID_AI`.
+   - Each call aborts after `GEMINI_TIMEOUT_MS` (25 s) with `AI_TIMEOUT` and is not retried; the Vercel function limit is 60 s.
    - Gemini 429 is never retried; it becomes `QUOTA`.
-   - A daily call cap (`GEMINI_DAILY_LIMIT`) is stored in the `rate_counters` table, never in memory, because serverless functions don't keep RAM between calls.
+   - A daily call cap (`GEMINI_DAILY_LIMIT`) is stored in the `rate_counters` table, never in memory, because serverless functions don't keep RAM between calls. It is consumed before every call (retries included, via `beforeCall`) and resets at midnight Vietnam time (`APP_UTC_OFFSET_MIN`).
    - Errors carry `data.code` (`ApiErrorCode`), and the client uses that code to decide whether to show "Copy prompt".
 3. **Review is mandatory.** Nothing is written to `mistakes` until `POST /api/attempts/:id/confirm`:
    - It runs in one transaction.
@@ -77,7 +85,7 @@ Single user. The session is an HMAC-signed cookie `<userId>.<exp>.<sig>` (`serve
 
 ### Backup
 
-`GET /api/export?format=json|csv|anki` and `POST /api/import`. Import inserts in foreign-key order with `onConflictDoNothing` and returns before/after counts. Bump `EXPORT_SCHEMA_VERSION` if the export shape changes.
+`GET /api/export?format=json|csv|anki` and `POST /api/import`. Import inserts in foreign-key order with `onConflictDoNothing`, maps file ids onto existing rows (attempts by `client_attempt_id`, mistakes by `pattern_key`), re-points hits, recomputes touched mistakes, keeps an existing focus, and returns before/after/inFile/skipped counts. Above `MAX_BACKUP_BYTES` (4 MB, under Vercel's 4.5 MB body limit) the web export/import refuse and point to `db:backup`/`db:restore`. Bump `EXPORT_SCHEMA_VERSION` if the export shape changes.
 
 ## Environment
 
