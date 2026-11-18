@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { MAX_BACKUP_BYTES } from '#shared/constants/app'
 import { fetchToday } from '~/api/attemptApi'
 import { LS_LAST_BACKUP } from '~/constants'
 import type { LocalAudio } from '~/composables/useLocalDb'
@@ -18,6 +19,9 @@ const needBackup = computed(() => {
     const isSunday = new Date().getDay() === 0
     return (isSunday && last < startOfToday()) || Date.now() - last > 8 * DAY_MS
 })
+
+/** Web export stops working above MAX_BACKUP_BYTES; warn from 80 %. */
+const backupTooBig = computed(() => !!data.value && data.value.backupBytes > MAX_BACKUP_BYTES * 0.8)
 
 const retry = (item: LocalAudio) => send(item)
 </script>
@@ -128,9 +132,17 @@ const retry = (item: LocalAudio) => send(item)
                 v-if="needBackup"
                 class="alert"
             >
-                Đến lúc sao lưu: mở menu ⋯ →
-                <strong>Xuất JSON</strong>
-                .
+                Đến lúc sao lưu (khoảng {{ formatBytes(data.backupBytes) }}):
+                <template v-if="backupTooBig">
+                    dữ liệu gần hoặc đã vượt giới hạn 4 MB của web, chạy
+                    <code>npm run db:backup</code>
+                    trên máy.
+                </template>
+                <template v-else>
+                    mở menu ⋯ →
+                    <strong>Xuất JSON</strong>
+                    .
+                </template>
             </div>
 
             <p class="muted">

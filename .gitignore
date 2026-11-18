@@ -8,3 +8,6 @@ data/*.db*
 golden_samples/*
 !golden_samples/README.md
 *.tsbuildinfo
+
+# Local JSON backups (npm run db:backup)
+backups/

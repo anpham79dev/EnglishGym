@@ -4,6 +4,8 @@ export interface ImportResult {
     before: Counts
     after: Counts
     inFile: Counts
+    /** Rows in the file that already existed (same id, client id or pattern_key). */
+    skipped: Counts
 }
 
 export const exportUrl = (format: 'json' | 'csv' | 'anki') => `/api/export?format=${format}`

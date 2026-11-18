@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { MAX_BACKUP_BYTES } from '#shared/constants/app'
 import { exportUrl, importBackup } from '~/api/backupApi'
 import { toApiFailure } from '~/api/http'
 import { LS_LAST_BACKUP } from '~/constants'
@@ -24,11 +25,18 @@ const onImport = async (ev: Event) => {
     const file = (ev.target as HTMLInputElement).files?.[0]
     if (!file) return
     try {
+        // Vercel rejects bodies over 4.5 MB; big backups go through the local script.
+        if (file.size > MAX_BACKUP_BYTES) {
+            toast.error(
+                `File ${formatBytes(file.size)} quá lớn để nhập qua web. Chạy npm run db:restore trên máy.`,
+            )
+            return
+        }
         const res = await importBackup(JSON.parse(await file.text()))
-        const lines = Object.entries(res.after).map(
-            ([k, v]) =>
-                `${k}: ${res.before[k as keyof typeof res.before]} → ${v} (file: ${res.inFile[k as keyof typeof res.inFile]})`,
-        )
+        const lines = Object.entries(res.after).map(([k, v]) => {
+            const n = k as keyof typeof res.after
+            return `${k}: ${res.before[n]} → ${v} (file: ${res.inFile[n]}, bỏ qua: ${res.skipped[n]})`
+        })
         alert(`Nhập xong. Số bản ghi trước → sau:\n${lines.join('\n')}`)
     } catch (e) {
         toast.error(e instanceof SyntaxError ? 'File không phải JSON' : toApiFailure(e).message)

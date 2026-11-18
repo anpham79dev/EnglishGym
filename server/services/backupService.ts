@@ -1,8 +1,10 @@
-import { createError } from 'h3'
 import { count } from 'drizzle-orm'
 import { z } from 'zod'
-import { EXPORT_SCHEMA_VERSION } from '#shared/constants/app'
-import { useDb, schema } from '../db'
+// Relative imports only: scripts/backup.ts and scripts/restore.ts run this outside Nuxt.
+import { EXPORT_SCHEMA_VERSION } from '../../shared/constants/app'
+import { useDb, schema, type Tx } from '../db'
+import { validationError } from '../utils/http'
+import { recomputeMistake } from './mistakeService'
 
 const TABLES = {
     topics: schema.topics,
@@ -71,13 +73,18 @@ export const exportMistakesCsv = async () => {
     )
 }
 
-/** Anki CSV: front = wrong + label, back = correction. */
+const escapeHtml = (s: string) =>
+    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
+/** Anki CSV (HTML fields): front = wrong + label, back = correction. */
 export const exportAnkiCsv = async () => {
     const rows = await useDb().select().from(schema.mistakes)
     const lines = rows.map((r) =>
         [
-            csvCell(`Fix: ${r.exampleWrong}<br><small>${r.labelVi}</small>`),
-            csvCell(r.exampleRight),
+            csvCell(
+                `Fix: ${escapeHtml(r.exampleWrong)}<br><small>${escapeHtml(r.labelVi)}</small>`,
+            ),
+            csvCell(escapeHtml(r.exampleRight)),
             csvCell(`englishgym ${r.category}`),
         ].join(','),
     )
@@ -92,35 +99,105 @@ const importSchema = z.object({
     mistake_hits: z.array(z.record(z.string(), z.unknown())),
 })
 
+type Row = Record<string, unknown>
+
+const insertChunks = async (tx: Tx, name: TableName, rows: Row[]) => {
+    for (let i = 0; i < rows.length; i += 50)
+        await tx
+            .insert(TABLES[name])
+            .values(rows.slice(i, i + 50) as never)
+            .onConflictDoNothing()
+}
+
 /**
- * Import an export file; existing rows are kept. Returns counts for verification.
+ * Import an export file; existing rows are kept, so it can merge into a non-empty DB.
+ * - attempts are matched by client_attempt_id, mistakes by pattern_key; hits are re-pointed
+ *   to the existing ids so nothing is orphaned or counted twice
+ * - hit_count/first_seen/last_seen are recomputed from hits
+ * - an existing focus mistake wins over focus flags from the file
+ * Returns counts for verification.
  */
 export const importAll = async (input: unknown) => {
     const parsed = importSchema.safeParse(input)
     if (!parsed.success)
-        throw createError({
-            statusCode: 400,
-            statusMessage: 'File nhập không đúng định dạng',
-            data: parsed.error.issues,
-        })
+        throw validationError(parsed.error.issues, 'File nhập không đúng định dạng')
+    const data = parsed.data
 
     const before = await countRecords()
     await useDb().transaction(async (tx) => {
-        for (const name of IMPORT_ORDER) {
-            const rows = parsed.data[name]
-            for (let i = 0; i < rows.length; i += 50) {
-                const chunk = rows.slice(i, i + 50)
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await insertChunks(tx, 'topics', data.topics)
+
+        // attempts: file id -> id in DB
+        const attemptIds = new Map<string, string>()
+        const byClientId = new Map(
+            (
                 await tx
-                    .insert(TABLES[name])
-                    .values(chunk as any)
-                    .onConflictDoNothing()
+                    .select({ id: schema.attempts.id, cid: schema.attempts.clientAttemptId })
+                    .from(schema.attempts)
+            ).map((a) => [a.cid, a.id]),
+        )
+        const newAttempts: Row[] = []
+        for (const row of data.attempts) {
+            const fileId = String(row.id)
+            const existingId = byClientId.get(String(row.clientAttemptId))
+            if (existingId) {
+                attemptIds.set(fileId, existingId)
+                continue
             }
+            attemptIds.set(fileId, fileId)
+            byClientId.set(String(row.clientAttemptId), fileId)
+            newAttempts.push(row)
         }
+        await insertChunks(tx, 'attempts', newAttempts)
+
+        // mistakes: file id -> id in DB, matched by pattern_key
+        const existingMistakes = await tx
+            .select({
+                id: schema.mistakes.id,
+                key: schema.mistakes.patternKey,
+                isFocus: schema.mistakes.isFocus,
+            })
+            .from(schema.mistakes)
+        const mistakeIds = new Map<string, string>()
+        const byKey = new Map(existingMistakes.map((x) => [x.key, x.id]))
+        let hasFocus = existingMistakes.some((x) => x.isFocus)
+        const newMistakes: Row[] = []
+        for (const row of data.mistakes) {
+            const fileId = String(row.id)
+            const existingId = byKey.get(String(row.patternKey))
+            if (existingId) {
+                mistakeIds.set(fileId, existingId)
+                continue
+            }
+            mistakeIds.set(fileId, fileId)
+            byKey.set(String(row.patternKey), fileId)
+            if (row.isFocus) {
+                if (hasFocus) row.isFocus = false
+                hasFocus = true
+            }
+            newMistakes.push(row)
+        }
+        await insertChunks(tx, 'mistakes', newMistakes)
+
+        // hits: re-point; unique (attempt_id, issue_index) skips hits already in the DB
+        const touched = new Set<string>()
+        const hits = data.mistake_hits.map((row) => {
+            const mistakeId = mistakeIds.get(String(row.mistakeId)) ?? String(row.mistakeId)
+            const attemptId = attemptIds.get(String(row.attemptId)) ?? String(row.attemptId)
+            touched.add(mistakeId)
+            return { ...row, mistakeId, attemptId }
+        })
+        await insertChunks(tx, 'mistake_hits', hits)
+        for (const id of touched) await recomputeMistake(tx, id)
     })
-    return {
-        before,
-        after: await countRecords(),
-        inFile: Object.fromEntries(IMPORT_ORDER.map((n) => [n, parsed.data[n].length])),
-    }
+
+    const after = await countRecords()
+    const inFile = Object.fromEntries(IMPORT_ORDER.map((n) => [n, data[n].length])) as Record<
+        TableName,
+        number
+    >
+    const skipped = Object.fromEntries(
+        IMPORT_ORDER.map((n) => [n, Math.max(0, inFile[n] - (after[n] - before[n]))]),
+    ) as Record<TableName, number>
+    return { before, after, inFile, skipped }
 }

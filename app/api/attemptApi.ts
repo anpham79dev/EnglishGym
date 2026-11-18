@@ -34,6 +34,8 @@ export interface TodaySummary {
     geminiUsedToday: number
     geminiDailyLimit: number
     model: string
+    /** Estimated JSON export size; above MAX_BACKUP_BYTES use npm run db:backup. */
+    backupBytes: number
 }
 
 export const fetchTopics = (kind?: AttemptKind) =>

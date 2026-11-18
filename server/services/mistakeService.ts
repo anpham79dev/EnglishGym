@@ -1,14 +1,13 @@
 import { createError } from 'h3'
 import { randomUUID } from 'node:crypto'
-import { count, desc, eq, inArray, max, min } from 'drizzle-orm'
+import { and, count, desc, eq, inArray, max, min } from 'drizzle-orm'
 import type { AttemptKind, MistakeWithHits } from '#shared/types'
-import { toPatternKey } from '#shared/utils/patternKey'
+// Relative import: backupService (and so this file) also runs in scripts outside Nuxt.
+import { toPatternKey } from '../../shared/utils/patternKey'
 import { useDb, schema, type Db, type Tx } from '../db'
 
 const m = schema.mistakes
 const h = schema.mistakeHits
-
-export { toPatternKey }
 
 /** Recompute hit_count/first_seen/last_seen from hits; delete if empty. */
 export const recomputeMistake = async (tx: Tx | Db, mistakeId: string) => {
@@ -65,87 +64,99 @@ export const listMistakes = async (kind?: AttemptKind): Promise<MistakeWithHits[
         .filter((row) => !kind || row.hits.length > 0)
 }
 
-export interface MistakePatch {
+export interface MistakeUpdate {
     labelVi?: string
     patternKey?: string
     exampleWrong?: string
     exampleRight?: string
     category?: string
     isFocus?: boolean
-    /** Merge into another mistake. */
-    mergeIntoId?: string
-    /** Move some hits to another (new or existing) pattern. */
-    split?: { hitIds: string[]; patternKey: string; labelVi: string }
 }
 
-export const patchMistake = async (id: string, patch: MistakePatch) => {
-    const db = useDb()
-    const current = await db.query.mistakes.findFirst({ where: eq(m.id, id) })
-    if (!current) throw createError({ statusCode: 404, statusMessage: 'Không tìm thấy lỗi' })
+export interface MistakeSplit {
+    hitIds: string[]
+    patternKey: string
+    labelVi: string
+}
 
-    await db.transaction(async (tx) => {
-        if (patch.mergeIntoId) {
-            if (patch.mergeIntoId === id)
-                throw createError({ statusCode: 400, statusMessage: 'Không thể gộp vào chính nó' })
-            const target = await tx.query.mistakes.findFirst({ where: eq(m.id, patch.mergeIntoId) })
-            if (!target)
-                throw createError({ statusCode: 404, statusMessage: 'Không tìm thấy lỗi đích' })
-            await tx.update(h).set({ mistakeId: target.id }).where(eq(h.mistakeId, id))
-            if (current.isFocus)
-                await tx.update(m).set({ isFocus: true }).where(eq(m.id, target.id))
-            await tx.delete(m).where(eq(m.id, id))
-            await recomputeMistake(tx, target.id)
-            return
-        }
+const requireMistake = async (tx: Tx | Db, id: string, message = 'Không tìm thấy lỗi') => {
+    const row = await tx.query.mistakes.findFirst({ where: eq(m.id, id) })
+    if (!row) throw createError({ statusCode: 404, statusMessage: message })
+    return row
+}
 
-        if (patch.split) {
-            const key = toPatternKey(patch.split.patternKey)
-            let target = await tx.query.mistakes.findFirst({ where: eq(m.patternKey, key) })
-            if (!target) {
-                ;[target] = await tx
-                    .insert(m)
-                    .values({
-                        id: randomUUID(),
-                        patternKey: key,
-                        labelVi: patch.split.labelVi || key,
-                        category: current.category,
-                        firstSeen: Date.now(),
-                        lastSeen: Date.now(),
-                    })
-                    .returning()
-            }
-            const moved = await tx
-                .update(h)
-                .set({ mistakeId: target!.id })
-                .where(inArray(h.id, patch.split.hitIds))
+const findMistake = (id: string) => useDb().query.mistakes.findFirst({ where: eq(m.id, id) })
+
+/** Move every hit of `id` into `targetId`, then delete `id`. Focus moves with it. */
+export const mergeMistake = async (id: string, targetId: string) => {
+    if (targetId === id)
+        throw createError({ statusCode: 400, statusMessage: 'Không thể gộp vào chính nó' })
+    await useDb().transaction(async (tx) => {
+        const current = await requireMistake(tx, id)
+        const target = await requireMistake(tx, targetId, 'Không tìm thấy lỗi đích')
+        await tx.update(h).set({ mistakeId: target.id }).where(eq(h.mistakeId, id))
+        if (current.isFocus) await tx.update(m).set({ isFocus: true }).where(eq(m.id, target.id))
+        await tx.delete(m).where(eq(m.id, id))
+        await recomputeMistake(tx, target.id)
+    })
+    return findMistake(id)
+}
+
+/** Move some hits of `id` to another (new or existing) pattern; an emptied mistake is deleted. */
+export const splitMistake = async (id: string, split: MistakeSplit) => {
+    await useDb().transaction(async (tx) => {
+        const current = await requireMistake(tx, id)
+        const key = toPatternKey(split.patternKey)
+        let target = await tx.query.mistakes.findFirst({ where: eq(m.patternKey, key) })
+        if (!target) {
+            ;[target] = await tx
+                .insert(m)
+                .values({
+                    id: randomUUID(),
+                    patternKey: key,
+                    labelVi: split.labelVi || key,
+                    category: current.category,
+                    firstSeen: Date.now(),
+                    lastSeen: Date.now(),
+                })
                 .returning()
-            if (moved[0] && !target!.exampleWrong)
-                await tx
-                    .update(m)
-                    .set({
-                        exampleWrong: moved[0].originalQuote,
-                        exampleRight: moved[0].correction,
-                    })
-                    .where(eq(m.id, target!.id))
-            await recomputeMistake(tx, target!.id)
-            await recomputeMistake(tx, id)
-            return
         }
+        const moved = await tx
+            .update(h)
+            .set({ mistakeId: target!.id })
+            .where(and(inArray(h.id, split.hitIds), eq(h.mistakeId, id)))
+            .returning()
+        if (moved[0] && !target!.exampleWrong)
+            await tx
+                .update(m)
+                .set({
+                    exampleWrong: moved[0].originalQuote,
+                    exampleRight: moved[0].correction,
+                })
+                .where(eq(m.id, target!.id))
+        await recomputeMistake(tx, target!.id)
+        await recomputeMistake(tx, id)
+    })
+    return findMistake(id)
+}
 
-        if (patch.patternKey !== undefined) {
-            const key = toPatternKey(patch.patternKey)
+/** Edit fields; a new pattern_key must not clash, and only one mistake can be the focus. */
+export const updateMistake = async (id: string, update: MistakeUpdate) => {
+    await useDb().transaction(async (tx) => {
+        await requireMistake(tx, id)
+        const fields = { ...update }
+        if (fields.patternKey !== undefined) {
+            const key = toPatternKey(fields.patternKey)
             const clash = await tx.query.mistakes.findFirst({ where: eq(m.patternKey, key) })
             if (clash && clash.id !== id)
                 throw createError({
                     statusCode: 409,
                     statusMessage: `pattern_key "${key}" đã tồn tại, hãy dùng chức năng gộp`,
                 })
-            patch.patternKey = key
+            fields.patternKey = key
         }
-        if (patch.isFocus) await tx.update(m).set({ isFocus: false })
-
-        const { mergeIntoId: _a, split: _b, ...fields } = patch
+        if (fields.isFocus) await tx.update(m).set({ isFocus: false })
         if (Object.keys(fields).length) await tx.update(m).set(fields).where(eq(m.id, id))
     })
-    return db.query.mistakes.findFirst({ where: eq(m.id, id) })
+    return findMistake(id)
 }
