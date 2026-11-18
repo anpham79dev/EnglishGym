@@ -27,7 +27,7 @@ const visible = computed(() => {
         (m) =>
             (!category.value || m.category === category.value) &&
             (!q ||
-                [m.labelVi, m.exampleWrong, m.exampleRight, m.patternKey].some((s) =>
+                [m.labelVi, m.exampleWrong, m.exampleRight, m.patternKey, m.note].some((s) =>
                     s.toLowerCase().includes(q),
                 )),
     )
@@ -54,7 +54,7 @@ const onChanged = async (closeDetail = false) => {
         <UInput
             v-model="search"
             icon="i-lucide-search"
-            placeholder="Tìm theo nhãn, ví dụ hoặc kiểu lỗi"
+            placeholder="Tìm theo nhãn, ví dụ, kiểu lỗi hoặc ghi chú"
             size="lg"
             class="w-full"
             aria-label="Tìm lỗi"

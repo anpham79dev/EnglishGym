@@ -8,6 +8,7 @@ const bodySchema = z.object({
     exampleRight: z.string().max(1000).optional(),
     category: z.string().max(50).optional(),
     isFocus: z.boolean().optional(),
+    note: z.string().max(2000).optional(),
     /** Merge into another mistake. */
     mergeIntoId: z.string().min(1).optional(),
     /** Move some hits to another (new or existing) pattern. */

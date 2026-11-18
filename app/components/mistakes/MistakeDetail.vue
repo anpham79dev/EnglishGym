@@ -14,7 +14,13 @@ const open = computed({
     set: (v) => !v && emit('close'),
 })
 
-const form = reactive({ labelVi: '', patternKey: '', exampleWrong: '', exampleRight: '' })
+const form = reactive({
+    labelVi: '',
+    patternKey: '',
+    exampleWrong: '',
+    exampleRight: '',
+    note: '',
+})
 const selectedHits = ref<string[]>([])
 const mergeInto = ref<string | undefined>(undefined)
 const splitOpen = ref(false)
@@ -31,6 +37,7 @@ watch(
             patternKey: m.patternKey,
             exampleWrong: m.exampleWrong,
             exampleRight: m.exampleRight,
+            note: m.note,
         })
         selectedHits.value = []
         mergeInto.value = undefined
@@ -131,6 +138,17 @@ const doSplit = async () => {
                     <UFormField label="Ví dụ đúng">
                         <UInput
                             v-model="form.exampleRight"
+                            class="w-full"
+                        />
+                    </UFormField>
+                    <UFormField
+                        label="Ghi chú"
+                        help="Nối với sách bạn đang học, ví dụ Grammar in Use unit 12, trang 24."
+                    >
+                        <UTextarea
+                            v-model="form.note"
+                            :rows="2"
+                            autoresize
                             class="w-full"
                         />
                     </UFormField>

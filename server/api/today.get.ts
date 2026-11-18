@@ -6,9 +6,11 @@ const querySchema = z.object({
     from: z.coerce.number().int().positive(),
     /** Day index for topic rotation. */
     day: z.coerce.number().int().nonnegative(),
+    /** Count manual check-ins toward the streak (user setting, default on). */
+    checkins: z.stringbool().default(true),
 })
 
 export default defineEventHandler(async (event) => {
-    const { from, day } = parseQuery(event, querySchema)
-    return getTodaySummary(from, day)
+    const { from, day, checkins } = parseQuery(event, querySchema)
+    return getTodaySummary(from, day, checkins)
 })

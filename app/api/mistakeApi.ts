@@ -6,6 +6,7 @@ export interface MistakePatch {
     exampleWrong?: string
     exampleRight?: string
     isFocus?: boolean
+    note?: string
     mergeIntoId?: string
     split?: { hitIds: string[]; patternKey: string; labelVi: string }
 }

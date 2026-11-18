@@ -1,4 +1,4 @@
-type Counts = Record<'topics' | 'attempts' | 'mistakes' | 'mistake_hits', number>
+type Counts = Record<'topics' | 'attempts' | 'mistakes' | 'mistake_hits' | 'checkins', number>
 
 export interface ImportResult {
     before: Counts

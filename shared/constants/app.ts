@@ -1,5 +1,6 @@
 export const PROMPT_VERSION = 'v1'
-export const EXPORT_SCHEMA_VERSION = 1
+/** 2: topics.tags/created_at, attempts.source, mistakes.note, checkins. */
+export const EXPORT_SCHEMA_VERSION = 2
 
 export const MAX_AUDIO_BYTES = 3 * 1024 * 1024
 export const MAX_RECORD_SECONDS = 120
@@ -11,6 +12,13 @@ export const GEMINI_TIMEOUT_MS = 25_000
 export const PROCESSING_STALE_MS = 2 * 60 * 1000
 /** App day boundary: Vietnam time (UTC+7), shared by server and client. */
 export const APP_UTC_OFFSET_MIN = 420
+/** Daily Gemini call cap when GEMINI_DAILY_LIMIT is not set (B4). */
+export const DEFAULT_GEMINI_DAILY_LIMIT = 10
+/** Max size of JSON pasted from another AI. */
+export const MAX_PASTED_JSON_CHARS = 50_000
+/** Weekly practice goal (days, Monday to Sunday). */
+export const WEEKLY_GOAL_DAYS = 5
+
 /** Vercel caps function request/response bodies at 4.5 MB; stay below it. */
 export const MAX_BACKUP_BYTES = 4 * 1024 * 1024
 

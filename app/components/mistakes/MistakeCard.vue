@@ -36,6 +36,17 @@ const toggleFocus = async () => {
                 :right="mistake.exampleRight"
                 class="text-sm"
             />
+            <p
+                v-if="mistake.note"
+                class="flex items-start gap-1.5 text-xs text-toned"
+            >
+                <UIcon
+                    name="i-lucide-sticky-note"
+                    class="mt-px size-3.5 shrink-0"
+                    aria-hidden="true"
+                />
+                <span class="line-clamp-2">{{ mistake.note }}</span>
+            </p>
             <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
                 <UBadge
                     color="neutral"

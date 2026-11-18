@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { MAX_AUDIO_BYTES } from '#shared/constants/app'
 import { buildManualPrompt, topicToText } from '#shared/utils/prompts'
-import { fetchTopics } from '~/api/attemptApi'
+import type { GradeChoice } from '~/api/attemptApi'
+import { fetchTopics } from '~/api/topicApi'
 import { SILENCE_PEAK } from '~/constants'
 import type { Recording } from '~/composables/useRecorder'
 import type { LocalAudio } from '~/composables/useLocalDb'
@@ -65,6 +66,13 @@ const discard = async () => {
 }
 
 const manualPrompt = computed(() => buildManualPrompt('speaking', topicToText(topic.value)))
+
+// N1/N2: finish without Gemini. Opens by itself when Gemini fails in a way manual grading helps.
+const showFallback = ref(false)
+watch(offerManual, (v) => v && (showFallback.value = true))
+const fallbackItem = computed(() => current.value ?? failedItem.value)
+const sendWithoutAi = (choice: GradeChoice) =>
+    fallbackItem.value && send(fallbackItem.value, choice)
 </script>
 
 <template>
@@ -137,6 +145,15 @@ const manualPrompt = computed(() => buildManualPrompt('speaking', topicToText(to
                 >
                     Bài đã lưu trên máy. Rời trang cũng không mất, bài nằm ở mục "Chưa gửi".
                 </p>
+                <UButton
+                    v-else-if="!showFallback"
+                    color="neutral"
+                    variant="link"
+                    icon="i-lucide-sparkles"
+                    label="Không dùng Gemini: dán JSON hoặc tự duyệt"
+                    class="px-0"
+                    @click="showFallback = true"
+                />
             </div>
         </UCard>
 
@@ -147,10 +164,13 @@ const manualPrompt = computed(() => buildManualPrompt('speaking', topicToText(to
             icon="i-lucide-circle-alert"
             :title="failure.message"
         />
-        <BaseCopyPrompt
-            v-if="offerManual"
+        <BaseGradeFallback
+            v-if="showFallback && fallbackItem"
+            kind="speaking"
             :prompt="manualPrompt"
-            :audio="failedItem"
+            :audio="fallbackItem"
+            :sending="sending"
+            @submit="sendWithoutAi"
         />
 
         <SpeakingPendingQueue

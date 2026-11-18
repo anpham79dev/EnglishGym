@@ -42,6 +42,7 @@ export const setupTestDb = () => {
     beforeEach(async () => {
         const db = useDb()
         // FK order: children first.
+        await db.delete(schema.checkins)
         await db.delete(schema.mistakeHits)
         await db.delete(schema.mistakes)
         await db.delete(schema.attempts)

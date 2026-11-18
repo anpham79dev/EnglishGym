@@ -11,10 +11,11 @@ const TABLES = {
     attempts: schema.attempts,
     mistakes: schema.mistakes,
     mistake_hits: schema.mistakeHits,
+    checkins: schema.checkins,
 } as const
 type TableName = keyof typeof TABLES
 /** FK-safe import order. */
-const IMPORT_ORDER: TableName[] = ['topics', 'attempts', 'mistakes', 'mistake_hits']
+const IMPORT_ORDER: TableName[] = ['topics', 'attempts', 'mistakes', 'mistake_hits', 'checkins']
 
 export const countRecords = async () => {
     const db = useDb()
@@ -36,6 +37,7 @@ export const exportAll = async () => {
         attempts: await db.select().from(schema.attempts),
         mistakes: await db.select().from(schema.mistakes),
         mistake_hits: await db.select().from(schema.mistakeHits),
+        checkins: await db.select().from(schema.checkins),
     }
 }
 
@@ -69,6 +71,7 @@ export const exportMistakesCsv = async () => {
             'isFocus',
             'firstSeen',
             'lastSeen',
+            'note',
         ],
     )
 }
@@ -84,7 +87,12 @@ export const exportAnkiCsv = async () => {
             csvCell(
                 `Fix: ${escapeHtml(r.exampleWrong)}<br><small>${escapeHtml(r.labelVi)}</small>`,
             ),
-            csvCell(escapeHtml(r.exampleRight)),
+            csvCell(
+                escapeHtml(r.exampleRight) +
+                    (r.note.trim()
+                        ? `<br><small>${escapeHtml(r.note).replace(/\n/g, '<br>')}</small>`
+                        : ''),
+            ),
             csvCell(`englishgym ${r.category}`),
         ].join(','),
     )
@@ -97,6 +105,8 @@ const importSchema = z.object({
     attempts: z.array(z.record(z.string(), z.unknown())),
     mistakes: z.array(z.record(z.string(), z.unknown())),
     mistake_hits: z.array(z.record(z.string(), z.unknown())),
+    // Added in schema_version 2; older files have none.
+    checkins: z.array(z.record(z.string(), z.unknown())).default([]),
 })
 
 type Row = Record<string, unknown>
@@ -189,6 +199,8 @@ export const importAll = async (input: unknown) => {
         })
         await insertChunks(tx, 'mistake_hits', hits)
         for (const id of touched) await recomputeMistake(tx, id)
+
+        await insertChunks(tx, 'checkins', data.checkins)
     })
 
     const after = await countRecords()

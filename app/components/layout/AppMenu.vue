@@ -3,6 +3,7 @@ import type { DropdownMenuItem } from '@nuxt/ui'
 import { MAX_BACKUP_BYTES } from '#shared/constants/app'
 import { importBackup, type ImportResult } from '~/api/backupApi'
 import { toApiFailure } from '~/api/http'
+import type { AppSettings } from '~/composables/useSettings'
 
 const fileInput = ref<HTMLInputElement>()
 const { logout } = useAuth()
@@ -10,6 +11,7 @@ const notify = useNotify()
 const confirm = useConfirm()
 const { download } = useBackup()
 const colorMode = useColorMode()
+const { settings, set } = useSettings()
 
 const importResult = ref<ImportResult | null>(null)
 const TABLE_LABELS: Record<keyof ImportResult['after'], string> = {
@@ -17,6 +19,7 @@ const TABLE_LABELS: Record<keyof ImportResult['after'], string> = {
     attempts: 'Bài nộp',
     mistakes: 'Kiểu lỗi',
     mistake_hits: 'Lần mắc',
+    checkins: 'Điểm danh',
 }
 
 const onImport = async (ev: Event) => {
@@ -58,8 +61,20 @@ const themeItem = (label: string, value: 'system' | 'light' | 'dark', icon: stri
     onUpdateChecked: () => (colorMode.preference = value),
 })
 
+const settingItem = (label: string, key: keyof AppSettings) => ({
+    label,
+    type: 'checkbox' as const,
+    checked: settings.value[key],
+    onUpdateChecked: (v: boolean) => set(key, v),
+    onSelect: (e: Event) => e.preventDefault(),
+})
+
 const items = computed<DropdownMenuItem[][]>(() => [
-    [{ label: 'Lịch sử', icon: 'i-lucide-history', to: '/history' }],
+    [
+        { label: 'Lịch sử', icon: 'i-lucide-history', to: '/history' },
+        { label: 'Lịch luyện tập', icon: 'i-lucide-calendar-days', to: '/calendar' },
+        { label: 'Kho đề', icon: 'i-lucide-library', to: '/topics' },
+    ],
     [
         {
             label: 'Xuất JSON (sao lưu)',
@@ -85,6 +100,11 @@ const items = computed<DropdownMenuItem[][]>(() => [
                     themeItem('Tối', 'dark', 'i-lucide-moon'),
                 ],
             ],
+        },
+        {
+            label: 'Cài đặt',
+            icon: 'i-lucide-settings',
+            children: [[settingItem('Streak tính cả ngày tự học', 'streakIncludeCheckins')]],
         },
         { label: 'Xoá audio đã gửi', icon: 'i-lucide-trash-2', onSelect: clearSentAudio },
     ],

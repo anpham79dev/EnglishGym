@@ -4,7 +4,7 @@ import { buildManualPrompt, topicToText } from '#shared/utils/prompts'
 import { fetchAttempt } from '~/api/attemptApi'
 import { fetchMistakes } from '~/api/mistakeApi'
 import { toApiFailure } from '~/api/http'
-import { KIND_ICONS, KIND_LABELS, STATUS_COLORS, STATUS_LABELS } from '~/constants'
+import { KIND_ICONS, KIND_LABELS, SOURCE_LABELS, STATUS_COLORS, STATUS_LABELS } from '~/constants'
 
 const route = useRoute()
 const id = route.params.id as string
@@ -89,6 +89,17 @@ const retryAgain = () =>
                         :color="STATUS_COLORS[attempt.status]"
                         variant="subtle"
                         :label="STATUS_LABELS[attempt.status]"
+                    />
+                    <UBadge
+                        v-if="attempt.source !== 'gemini'"
+                        color="neutral"
+                        variant="soft"
+                        :icon="
+                            attempt.source === 'manual'
+                                ? 'i-lucide-user-check'
+                                : 'i-lucide-clipboard-paste'
+                        "
+                        :label="SOURCE_LABELS[attempt.source]"
                     />
                 </div>
                 <p class="text-sm text-muted">

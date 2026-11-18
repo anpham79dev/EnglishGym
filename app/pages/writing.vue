@@ -2,7 +2,8 @@
 import { MAX_WRITING_CHARS } from '#shared/constants/app'
 import { countWords } from '#shared/utils/kpi'
 import { buildManualPrompt, topicToText } from '#shared/utils/prompts'
-import { fetchAttempt, fetchTopics, submitWriting } from '~/api/attemptApi'
+import { fetchAttempt, submitWriting, type GradeChoice } from '~/api/attemptApi'
+import { fetchTopics } from '~/api/topicApi'
 import {
     isGraded,
     notGradedFailure,
@@ -81,7 +82,7 @@ watch(
     },
 )
 
-const submit = async () => {
+const submit = async (choice?: GradeChoice) => {
     sending.value = true
     failure.value = null
     failedText = null
@@ -98,6 +99,7 @@ const submit = async () => {
             topicId: draft.topicId,
             attemptGroupId: draft.attemptGroupId,
             text: draft.text,
+            choice,
         })
         // Keep the draft until the server has really graded it.
         if (!isGraded(attempt)) return await fail(notGradedFailure())
@@ -126,6 +128,10 @@ const clearDraft = async () => {
 const manualPrompt = computed(() =>
     buildManualPrompt('writing', topicToText(topic.value), draft.text),
 )
+
+// N1/N2: finish without Gemini. Opens by itself when Gemini fails in a way manual grading helps.
+const showFallback = ref(false)
+watch(failure, (f) => f && shouldOfferManualPrompt(f) && (showFallback.value = true))
 </script>
 
 <template>
@@ -177,9 +183,22 @@ const manualPrompt = computed(() =>
             icon="i-lucide-circle-alert"
             :title="failure.message"
         />
-        <BaseCopyPrompt
-            v-if="failure && shouldOfferManualPrompt(failure)"
+        <BaseGradeFallback
+            v-if="showFallback"
+            kind="writing"
             :prompt="manualPrompt"
+            :sending="sending"
+            @submit="submit"
+        />
+        <UButton
+            v-else
+            color="neutral"
+            variant="link"
+            icon="i-lucide-sparkles"
+            label="Không dùng Gemini: dán JSON hoặc tự duyệt"
+            class="px-0"
+            :disabled="draft.text.trim().length < 10"
+            @click="showFallback = true"
         />
 
         <!-- Sticky submit bar: stays above the bottom nav and the on-screen keyboard. -->
@@ -195,7 +214,7 @@ const manualPrompt = computed(() =>
                 :loading="sending"
                 :disabled="draft.text.trim().length < 10"
                 :label="sending ? 'Đang chấm' : 'Nộp để nhận gợi ý'"
-                @click="submit"
+                @click="submit()"
             />
         </div>
     </LayoutPage>

@@ -3,6 +3,7 @@ import type { AttemptKind } from '#shared/types'
 import { useDb, schema } from '../db'
 import { geminiDailyLimit, geminiUsedToday } from '../utils/quota'
 import { geminiModel } from './geminiService'
+import { getStreak } from './streakService'
 
 /**
  * Rough size of the JSON export (bytes), from column lengths instead of building the export.
@@ -29,7 +30,7 @@ export const estimateBackupBytes = async () => {
  * @param from start of the user's local day (ms)
  * @param day day index for topic rotation
  */
-export const getTodaySummary = async (from: number, day: number) => {
+export const getTodaySummary = async (from: number, day: number, includeCheckins = true) => {
     const db = useDb()
 
     const topics = await db
@@ -66,5 +67,6 @@ export const getTodaySummary = async (from: number, day: number) => {
         geminiDailyLimit: geminiDailyLimit(),
         model: geminiModel(),
         backupBytes: await estimateBackupBytes(),
+        streak: await getStreak(includeCheckins),
     }
 }

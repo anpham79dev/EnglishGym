@@ -1,4 +1,5 @@
-import type { Attempt, AttemptKind, ConfirmBody, Mistake, Topic } from '#shared/types'
+import type { Attempt, AttemptKind, ConfirmBody, Mistake, SubmitMode, Topic } from '#shared/types'
+import type { StreakSummary } from '#shared/utils/streak'
 
 export interface AttemptDetail {
     attempt: Attempt
@@ -36,13 +37,19 @@ export interface TodaySummary {
     model: string
     /** Estimated JSON export size; above MAX_BACKUP_BYTES use npm run db:backup. */
     backupBytes: number
+    streak: StreakSummary
 }
 
-export const fetchTopics = (kind?: AttemptKind) =>
-    $fetch<Topic[]>('/api/topics', { query: { kind } })
+/** How to grade a submit: Gemini (default), self-review, or JSON pasted from another AI. */
+export interface GradeChoice {
+    mode: SubmitMode
+    pastedJson?: string
+    /** Self-review of a speaking attempt: the transcript typed by the user. */
+    transcript?: string
+}
 
-export const fetchToday = (from: number, day: number) =>
-    $fetch<TodaySummary>('/api/today', { query: { from, day } })
+export const fetchToday = (from: number, day: number, checkins = true) =>
+    $fetch<TodaySummary>('/api/today', { query: { from, day, checkins } })
 
 export const fetchAttempts = (query: { kind?: AttemptKind; from?: number; to?: number } = {}) =>
     $fetch<AttemptListItem[]>('/api/attempts', { query })
@@ -54,7 +61,14 @@ export const submitWriting = (body: {
     topicId: string | null
     attemptGroupId?: string | null
     text: string
-}) => $fetch<Attempt>('/api/attempts/writing', { method: 'POST', body })
+    choice?: GradeChoice
+}) => {
+    const { choice, ...rest } = body
+    return $fetch<Attempt>('/api/attempts/writing', {
+        method: 'POST',
+        body: { ...rest, mode: choice?.mode ?? 'ai', pastedJson: choice?.pastedJson },
+    })
+}
 
 export const submitSpeaking = (input: {
     clientAttemptId: string
@@ -63,14 +77,21 @@ export const submitSpeaking = (input: {
     mimeType: string
     durationS: number
     blob: Blob
+    choice?: GradeChoice
 }) => {
+    const mode = input.choice?.mode ?? 'ai'
     const form = new FormData()
     form.append('clientAttemptId', input.clientAttemptId)
     form.append('topicId', input.topicId ?? '')
     form.append('attemptGroupId', input.attemptGroupId ?? '')
     form.append('mimeType', input.mimeType)
     form.append('durationS', String(Math.max(1, Math.round(input.durationS))))
-    form.append('audio', input.blob, `audio.${input.mimeType.includes('mp4') ? 'm4a' : 'webm'}`)
+    form.append('mode', mode)
+    if (input.choice?.pastedJson) form.append('pastedJson', input.choice.pastedJson)
+    if (input.choice?.transcript) form.append('transcript', input.choice.transcript)
+    // Audio is only uploaded for AI grading; it is never stored on the server.
+    if (mode === 'ai')
+        form.append('audio', input.blob, `audio.${input.mimeType.includes('mp4') ? 'm4a' : 'webm'}`)
     return $fetch<Attempt>('/api/attempts/speaking', {
         method: 'POST',
         body: form,

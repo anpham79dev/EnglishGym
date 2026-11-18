@@ -1,4 +1,10 @@
-import type { AttemptKind, AttemptStatus, IssueCategory } from '#shared/types'
+import type {
+    AttemptKind,
+    AttemptSource,
+    AttemptStatus,
+    CheckinKind,
+    IssueCategory,
+} from '#shared/types'
 
 /** Icons are Lucide names only (no emoji or symbol characters anywhere in the UI). */
 export const NAV_ITEMS = [
@@ -44,6 +50,22 @@ export const STATUS_COLORS: Record<AttemptStatus, 'info' | 'warning' | 'success'
     needs_review: 'warning',
     confirmed: 'success',
     failed: 'error',
+}
+
+/** Self-study kinds for manual check-ins (N11). */
+export const CHECKIN_KINDS: Record<CheckinKind, { label: string; icon: string }> = {
+    book: { label: 'Sách', icon: 'i-lucide-book-open' },
+    listening: { label: 'Nghe', icon: 'i-lucide-headphones' },
+    reading: { label: 'Đọc', icon: 'i-lucide-book-text' },
+    vocab: { label: 'Từ vựng', icon: 'i-lucide-whole-word' },
+    grammar: { label: 'Ngữ pháp', icon: 'i-lucide-spell-check' },
+    other: { label: 'Khác', icon: 'i-lucide-circle-ellipsis' },
+}
+
+export const SOURCE_LABELS: Record<AttemptSource, string> = {
+    gemini: 'Gemini chấm',
+    manual: 'Tự duyệt',
+    pasted: 'AI khác (dán JSON)',
 }
 
 export const LS_LAST_BACKUP = 'eg:lastBackupAt'

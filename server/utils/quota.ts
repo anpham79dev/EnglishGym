@@ -1,9 +1,11 @@
+import { DEFAULT_GEMINI_DAILY_LIMIT } from '#shared/constants/app'
 import { apiError } from './http'
 import { APP_DAY_OFFSET_MS, DAY_MS, hitCounter, peekCounter } from './rateLimit'
 
 const GEMINI_COUNTER = 'gemini:day'
 
-export const geminiDailyLimit = () => Number(process.env.GEMINI_DAILY_LIMIT || 40)
+export const geminiDailyLimit = () =>
+    Number(process.env.GEMINI_DAILY_LIMIT || DEFAULT_GEMINI_DAILY_LIMIT)
 
 /** Gemini calls made today (Vietnam day). */
 export const geminiUsedToday = () => peekCounter(GEMINI_COUNTER, DAY_MS, APP_DAY_OFFSET_MS)
@@ -16,6 +18,6 @@ export const consumeGeminiQuota = async () => {
         throw apiError(
             429,
             'DAILY_LIMIT',
-            `Đã dùng hết ${limit} lượt chấm hôm nay. Dùng Copy prompt.`,
+            `Đã dùng hết ${limit} lượt chấm hôm nay. Dùng Copy prompt hoặc tự duyệt.`,
         )
 }

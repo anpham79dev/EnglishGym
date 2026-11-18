@@ -2,6 +2,11 @@ import type { ISSUE_CATEGORIES } from '../constants/app'
 
 export type AttemptKind = 'speaking' | 'writing'
 export type AttemptStatus = 'processing' | 'needs_review' | 'confirmed' | 'failed'
+/** gemini = graded by Gemini; manual = self-review, no AI; pasted = JSON from another AI. */
+export type AttemptSource = 'gemini' | 'manual' | 'pasted'
+/** How the client wants an attempt graded. */
+export type SubmitMode = 'ai' | 'manual' | 'pasted'
+export type CheckinKind = 'book' | 'listening' | 'reading' | 'vocab' | 'grammar' | 'other'
 export type IssueCategory = (typeof ISSUE_CATEGORIES)[number]
 
 export interface AiIssue {
@@ -25,6 +30,8 @@ export interface Topic {
     prompt: string
     level: string
     active: boolean
+    tags: string
+    createdAt: number
 }
 
 export interface Attempt {
@@ -45,6 +52,7 @@ export interface Attempt {
     error: string | null
     /** When the row last entered `processing` (ms); used to detect stuck grading. */
     processingAt: number | null
+    source: AttemptSource
     selfRating: number | null
     fillerCount: number | null
     createdAt: number
@@ -62,6 +70,7 @@ export interface Mistake {
     lastSeen: number
     hitCount: number
     isFocus: boolean
+    note: string
 }
 
 export interface MistakeHit {
@@ -94,6 +103,15 @@ export interface ConfirmBody {
     issues: ConfirmIssue[]
 }
 
+export interface Checkin {
+    id: string
+    date: string
+    kind: CheckinKind
+    minutes: number | null
+    note: string
+    createdAt: number
+}
+
 /** Error codes; the client uses them to decide on "Copy prompt". */
 export type ApiErrorCode =
     | 'QUOTA'
@@ -105,3 +123,4 @@ export type ApiErrorCode =
     | 'TOO_LARGE'
     | 'BAD_MIME'
     | 'RATE_LIMIT'
+    | 'BAD_JSON'

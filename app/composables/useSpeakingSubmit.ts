@@ -1,4 +1,4 @@
-import { submitSpeaking } from '~/api/attemptApi'
+import { submitSpeaking, type GradeChoice } from '~/api/attemptApi'
 import {
     isGraded,
     notGradedFailure,
@@ -14,7 +14,7 @@ export const useSpeakingSubmit = () => {
     const failure = ref<ApiFailure | null>(null)
     const failedItem = ref<LocalAudio | null>(null)
 
-    const send = async (item: LocalAudio) => {
+    const send = async (item: LocalAudio, choice?: GradeChoice) => {
         sending.value = true
         failure.value = null
         failedItem.value = null
@@ -32,6 +32,7 @@ export const useSpeakingSubmit = () => {
                 mimeType: item.mimeType,
                 durationS: item.durationS,
                 blob: item.blob,
+                choice,
             })
             // Keep it in the "not sent" queue until the server has really graded it.
             if (!isGraded(attempt)) return await fail(notGradedFailure())

@@ -17,6 +17,9 @@ export const topics = sqliteTable('topics', {
     prompt: text('prompt').notNull(),
     level: text('level').notNull().default('B1'),
     active: integer('active', { mode: 'boolean' }).notNull().default(true),
+    /** Comma-separated tags, e.g. "work,standup" or "toeic-sw,opinion". */
+    tags: text('tags').notNull().default(''),
+    createdAt: integer('created_at').notNull().default(now),
 })
 
 export const attempts = sqliteTable(
@@ -40,6 +43,10 @@ export const attempts = sqliteTable(
         aiJson: text('ai_json'),
         error: text('error'),
         processingAt: integer('processing_at'),
+        /** Who produced ai_json: Gemini, nobody (self-review) or pasted from another AI. */
+        source: text('source', { enum: ['gemini', 'manual', 'pasted'] })
+            .notNull()
+            .default('gemini'),
         selfRating: integer('self_rating'),
         fillerCount: integer('filler_count'),
         createdAt: integer('created_at').notNull().default(now),
@@ -62,6 +69,8 @@ export const mistakes = sqliteTable('mistakes', {
     lastSeen: integer('last_seen').notNull(),
     hitCount: integer('hit_count').notNull().default(0),
     isFocus: integer('is_focus', { mode: 'boolean' }).notNull().default(false),
+    /** Free note, e.g. the book page to revisit. */
+    note: text('note').notNull().default(''),
 })
 
 export const mistakeHits = sqliteTable(
@@ -82,6 +91,23 @@ export const mistakeHits = sqliteTable(
         uniqueIndex('mistake_hits_attempt_issue_uq').on(t.attemptId, t.issueIndex),
         index('mistake_hits_mistake_idx').on(t.mistakeId),
     ],
+)
+
+/** Manual check-ins for days studied outside the app (books, listening…). */
+export const checkins = sqliteTable(
+    'checkins',
+    {
+        id: text('id').primaryKey(),
+        /** YYYY-MM-DD in Vietnam time. */
+        date: text('date').notNull(),
+        kind: text('kind', {
+            enum: ['book', 'listening', 'reading', 'vocab', 'grammar', 'other'],
+        }).notNull(),
+        minutes: integer('minutes'),
+        note: text('note').notNull().default(''),
+        createdAt: integer('created_at').notNull().default(now),
+    },
+    (t) => [index('checkins_date_idx').on(t.date)],
 )
 
 export const rateCounters = sqliteTable('rate_counters', {

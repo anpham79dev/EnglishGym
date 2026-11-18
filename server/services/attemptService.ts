@@ -2,7 +2,7 @@ import { createError } from 'h3'
 import { randomUUID } from 'node:crypto'
 import { and, desc, eq, gte, isNull, lt, max, type SQL } from 'drizzle-orm'
 import { PROCESSING_STALE_MS } from '#shared/constants/app'
-import type { Attempt, AttemptKind, ConfirmBody } from '#shared/types'
+import type { Attempt, AttemptKind, AttemptSource, ConfirmBody } from '#shared/types'
 import { toPatternKey } from '#shared/utils/patternKey'
 import { useDb, schema } from '../db'
 import { apiError } from '../utils/http'
@@ -46,6 +46,8 @@ export interface SubmitInput {
     durationS?: number | null
     mimeType?: string | null
     text?: string | null
+    /** gemini (default), manual (self-review, no AI) or pasted (JSON from another AI). */
+    source?: AttemptSource
 }
 
 /** True when a `processing` row has been stuck long enough to assume its function died. */
@@ -76,7 +78,14 @@ const claimAttempt = async (input: SubmitInput): Promise<string | Attempt> => {
         // Conditional claim: if a parallel request re-claimed the row first, nothing matches.
         const claimed = await db
             .update(t)
-            .set({ status: 'processing', error: null, processingAt: Date.now() })
+            .set({
+                status: 'processing',
+                error: null,
+                processingAt: Date.now(),
+                // A failed AI attempt can be finished in another mode under the same id.
+                source: input.source ?? 'gemini',
+                ...(input.durationS !== undefined ? { durationS: input.durationS } : {}),
+            })
             .where(
                 and(
                     eq(t.id, existing.id),
@@ -113,6 +122,7 @@ const claimAttempt = async (input: SubmitInput): Promise<string | Attempt> => {
             mimeType: input.mimeType ?? null,
             createdAt: now,
             processingAt: now,
+            source: input.source ?? 'gemini',
         })
     } catch (err) {
         // A parallel request with the same client id inserted first: it is grading now.
@@ -144,7 +154,8 @@ export const submitAttempt = async (
                 status: 'needs_review',
                 textOrTranscript:
                     input.kind === 'speaking' ? (out.result.transcript ?? '') : (input.text ?? ''),
-                aiJson: out.raw,
+                // Self-review has no AI output; ai_json stays null rather than an empty string.
+                aiJson: input.source === 'manual' ? null : out.raw,
                 model: out.model,
                 promptVersion: out.promptVersion,
                 error: null,

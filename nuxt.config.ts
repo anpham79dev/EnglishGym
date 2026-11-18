@@ -25,7 +25,11 @@ export default defineNuxtConfig({
     },
     icon: {
         // Icons come from @iconify-json/lucide in the bundle, never from the Iconify API.
-        clientBundle: { scan: true, includeCustomCollections: true },
+        clientBundle: {
+            // The default scan skips .ts files, so icon names kept in app/constants were missed.
+            scan: { globInclude: ['**/*.{vue,ts}'] },
+            includeCustomCollections: true,
+        },
         fallbackToApi: false,
     },
     // Secrets are read from process.env on the server only.

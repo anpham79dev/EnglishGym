@@ -71,6 +71,7 @@ export interface MistakeUpdate {
     exampleRight?: string
     category?: string
     isFocus?: boolean
+    note?: string
 }
 
 export interface MistakeSplit {
@@ -95,7 +96,15 @@ export const mergeMistake = async (id: string, targetId: string) => {
         const current = await requireMistake(tx, id)
         const target = await requireMistake(tx, targetId, 'Không tìm thấy lỗi đích')
         await tx.update(h).set({ mistakeId: target.id }).where(eq(h.mistakeId, id))
-        if (current.isFocus) await tx.update(m).set({ isFocus: true }).where(eq(m.id, target.id))
+        // Keep both notes (N4): neither side's book reference is lost.
+        const note = [target.note, current.note]
+            .map((n) => n.trim())
+            .filter(Boolean)
+            .join('\n')
+        await tx
+            .update(m)
+            .set({ note, ...(current.isFocus ? { isFocus: true } : {}) })
+            .where(eq(m.id, target.id))
         await tx.delete(m).where(eq(m.id, id))
         await recomputeMistake(tx, target.id)
     })

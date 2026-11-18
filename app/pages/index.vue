@@ -4,8 +4,11 @@ import { fetchToday } from '~/api/attemptApi'
 import { KIND_ICONS, KIND_LABELS, LS_LAST_BACKUP } from '~/constants'
 import type { LocalAudio } from '~/composables/useLocalDb'
 
-const { data, error, refresh } = await useAsyncData('today', () =>
-    fetchToday(startOfToday(), localDayIndex()),
+const { settings } = useSettings()
+const { data, error, refresh } = await useAsyncData(
+    'today',
+    () => fetchToday(startOfToday(), localDayIndex(), settings.value.streakIncludeCheckins),
+    { watch: [() => settings.value.streakIncludeCheckins] },
 )
 const { sending, failure, send } = useSpeakingSubmit()
 const { download, downloading } = useBackup()
@@ -52,6 +55,14 @@ const practice = computed(() =>
         : [],
 )
 
+/** B4: say how many Gemini calls are left once 70 % of the daily cap is used. */
+const geminiLeft = computed(() =>
+    data.value ? Math.max(0, data.value.geminiDailyLimit - data.value.geminiUsedToday) : 0,
+)
+const geminiLow = computed(
+    () => !!data.value && data.value.geminiUsedToday >= data.value.geminiDailyLimit * 0.7,
+)
+
 const retry = (item: LocalAudio) => send(item)
 </script>
 
@@ -82,6 +93,11 @@ const retry = (item: LocalAudio) => send(item)
         </div>
 
         <template v-if="data">
+            <StreakCard
+                :streak="data.streak"
+                @changed="refresh()"
+            />
+
             <div class="grid gap-4 sm:grid-cols-2">
                 <UCard
                     v-for="p in practice"
@@ -177,6 +193,17 @@ const retry = (item: LocalAudio) => send(item)
                         :wrong="data.focus.exampleWrong"
                         :right="data.focus.exampleRight"
                     />
+                    <p
+                        v-if="data.focus.note"
+                        class="prewrap flex items-start gap-1.5 text-sm text-muted"
+                    >
+                        <UIcon
+                            name="i-lucide-sticky-note"
+                            class="mt-0.5 size-4 shrink-0"
+                            aria-hidden="true"
+                        />
+                        {{ data.focus.note }}
+                    </p>
                 </div>
             </UCard>
 
@@ -215,6 +242,19 @@ const retry = (item: LocalAudio) => send(item)
                               },
                           ]
                 "
+            />
+
+            <UAlert
+                v-if="geminiLow"
+                color="neutral"
+                variant="soft"
+                icon="i-lucide-gauge"
+                :title="
+                    geminiLeft
+                        ? `Còn ${geminiLeft} lượt chấm Gemini hôm nay`
+                        : 'Đã hết lượt chấm Gemini hôm nay'
+                "
+                description="Hết lượt vẫn nộp được: dán JSON từ AI khác hoặc tự duyệt."
             />
 
             <p class="flex items-center gap-1.5 text-xs text-muted">
