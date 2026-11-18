@@ -22,11 +22,16 @@ lỗi đã duyệt được lưu vào sổ để ôn và làm lại.
 - **Duyệt lỗi**: sửa bản chép lời, bỏ tick hoặc sửa lỗi AI đề xuất, tự chấm độ trôi chảy, xem tốc độ nói và số lỗi
 - **Sổ lỗi**: lọc theo nói/viết, sửa, gộp, tách lỗi, chọn lỗi trọng tâm tuần
 - **Xuất / nhập dữ liệu**: JSON để sao lưu, CSV sổ lỗi, CSV cho Anki
-- **Dự phòng**: khi Gemini lỗi hoặc hết quota, có nút Copy prompt để chấm bằng AI khác; bài chưa gửi được giữ trên máy để gửi lại
+- **Dự phòng**: khi Gemini lỗi hoặc hết quota, dán JSON chấm bằng AI khác hoặc tự duyệt không cần AI; bài chưa gửi được giữ trên máy để gửi lại
+- **Kho đề**: thêm, sửa, tắt đề, gắn tag, nhập từ JSON/CSV, đề TOEIC có bấm giờ chuẩn bị và trả lời
+- **Ôn lỗi**: thẻ ôn từ chính câu mình từng sai, lịch giãn cách FSRS; kiểm tra tuần với những lỗi hay sai nhất
+- **Streak và lịch**: chuỗi ngày luyện, mục tiêu 5 ngày mỗi tuần, lịch tháng, điểm danh ngày tự học bằng sách
+- **Tiến bộ**: biểu đồ theo tuần (lỗi/100 từ, tái phạm lỗi trọng tâm, tốc độ nói, tỉ lệ tự bắt được lỗi, tỉ lệ nhớ), bài đối chứng hằng tháng
+- **Tự tìm lỗi trước khi xem AI** và **so sánh các phiên bản** của cùng một đề
 
 ## Cách chạy
 
-Yêu cầu Node.js 22 trở lên.
+Yêu cầu Node.js 24 trở lên.
 
 ```sh
 npm install

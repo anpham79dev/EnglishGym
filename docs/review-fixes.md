@@ -56,11 +56,40 @@ File có hai phần:
 
 **Khác với kế hoạch B7:** chưa dựng mockup để chọn phong cách, mà dùng luôn đề xuất mặc định (tối giản, teal, Inter, Lucide). Muốn đổi thì sửa `app.config.ts` và `main.css`. Thanh dưới giữ 4 mục hiện có; bố cục 5 mục (Hôm nay · Luyện · Ôn · Sổ lỗi · Tiến bộ) sẽ áp dụng khi có N5 và N7. Chưa thử trên điện thoại thật và Safari iOS.
 
-**Phần B còn lại chưa làm:** B4, N1–N11.
+**B4 và N1–N11 đã làm xong (18/11/2026).** `typecheck`, `npm test` (70 test), `build` đều qua. Mọi màn hình mới đã chụp kiểm tra ở 390px và 1280px, sáng và tối, không có lỗi JS, request hỏng hay icon thiếu.
+
+| Mục | Đã làm |
+| --- | --- |
+| B4 | Hạn mức mặc định 10 lượt/ngày (`DEFAULT_GEMINI_DAILY_LIMIT`, `.env.example`). Hôm nay báo "còn z lượt" khi đã dùng từ 70%. `.env` trên máy bạn vẫn đặt 40, tự sửa nếu muốn |
+| N1 | `attempts.source`, `mode = ai \| manual \| pasted` ở cả hai route, `gradeModes.ts`. Tự duyệt lưu `ai_json = null`. Bài nói tự duyệt không gửi audio, cần bản chép lời tự gõ. Chấm lại row `failed` bằng chế độ khác ghi lại `source` và `durationS` |
+| N2 | `shared/utils/pasted.ts`: bỏ khối ```` ```json ````, câu dẫn, nhóm lỗi lạ thành `other`. JSON sai bị từ chối trước khi tạo row (`BAD_JSON`), nên dán sai không biến bài thành `failed`. Chuỗi gốc lưu nguyên trong `ai_json` |
+| N1 + N2 (giao diện) | Khối "Hoàn thành bài không cần Gemini" (`BaseGradeFallback`) ở trang nói và viết: tab Dán JSON (có Copy prompt, tải audio) và tab Tự duyệt. Tự mở khi Gemini lỗi, hoặc mở bằng liên kết dưới nút Nộp |
+| N3 | `topics.tags`, `created_at`. API thêm, sửa, tắt, xoá (đề đã có bài chỉ tắt được), nhập JSON/CSV có parser xử lý ngoặc kép, bỏ dòng trùng `(kind, title)`. Trang `/topics` có lọc tag. C1 và C3 đã làm từ phần A |
+| N4 | `mistakes.note`, sửa trong chi tiết lỗi, hiện ở thẻ sổ lỗi, lỗi trọng tâm, mặt sau thẻ ôn, CSV sổ lỗi và mặt sau Anki. Gộp kiểu lỗi thì nối hai ghi chú. Ô tìm kiếm sổ lỗi tìm cả ghi chú |
+| N5 | `ts-fsrs` 6.0.0 (mặc định FSRS-7, không fuzz). Bảng `cards` (một thẻ mỗi hit), `review_logs`. Thẻ tạo trong transaction của `confirmAttempt`. Tối đa 3 thẻ hoạt động mỗi kiểu lỗi (`rebalanceCards` sau xác nhận, gộp, tách, nhập). Server tính lịch. Trang `/drill`: câu chứa lỗi có tô sáng, ô tự gõ câu sửa, lật thẻ, 4 mức kèm thời điểm ôn kế tiếp. Script `npm run db:backfill-cards` cho các hit cũ. Xuất/nhập có thẻ, log, ánh xạ hit theo `(attempt_id, issue_index)` như đã ghi ở mục N5 |
+| N6 | Bảng `quizzes`, 12 thẻ theo thứ tự ưu tiên trong đặc tả, kết quả vẫn cập nhật lịch FSRS (`is_quiz`, `quiz_id`). Trang `/quiz` làm tiếp được nếu bỏ dở, có lịch sử điểm. Hôm nay nhắc vào Chủ nhật nếu tuần này chưa làm |
+| N7 | `/api/stats` gom theo tuần (thứ Hai, giờ VN): ngày luyện, số bài, lỗi/100 từ (chỉ bài Gemini chấm; tự duyệt và dán JSON tính riêng), tốc độ nói, tái phạm lỗi trọng tâm (dựa trên bảng mới `focus_log`), số lần ôn, tỉ lệ nhớ, điểm kiểm tra, tỉ lệ tự bắt được. Vạch đứt ở tuần đổi model/prompt. Bài đối chứng: `attempts.is_benchmark`, hai đề seed `s-benchmark`, `w-benchmark`, Hôm nay nhắc hằng tháng. Trang `/progress` có 3 tab: Thống kê, Lịch, Đối chứng. Biểu đồ SVG tự vẽ theo skill `dataviz`: mỗi chỉ số một biểu đồ nhỏ, màu teal-600 đã chạy validator cho cả nền sáng và tối, có tooltip và chế độ xem bảng |
+| N8 | `topics.prep_s`, `response_s`, `attempts.timed_result`. Trang nói: "Bắt đầu chuẩn bị" mở micro ngay lúc chạm (Safari iOS), đếm ngược, tự ghi âm, tự dừng khi hết giờ. Trang viết: đồng hồ chạy từ chữ đầu tiên, quá giờ chỉ nhắc. Trang duyệt hiện "Xong trong giờ"/"Quá giờ" |
+| N9 | Bước "Tự tìm lỗi trước": chạm vào từng từ nghi sai (dễ dùng một tay hơn bôi chọn), các từ liền nhau gộp thành một đoạn. So khớp bằng `findQuote`, chồng lấn là tính. Chỗ đánh dấu mà AI không nêu thành lỗi tự thêm, điền sẵn đoạn trích, chưa tick. `mistake_hits.self_found`, `attempts.self_marked_count`. Hai cài đặt trong menu: bật/tắt bước này, không tick sẵn lỗi AI |
+| N10 | `GET /api/attempts/groups/:groupId`, trang `/compare/:groupId`: chọn hai bản, bảng chỉ số có mũi tên tốt hơn/kém hơn, kiểu lỗi đã hết, còn lặp, mới xuất hiện, diff theo từ (tự viết, LCS). Nút "So với bản trước" ở trang duyệt. Lịch sử gom các phiên bản cùng nhóm thành một dòng mở rộng được |
+| N11 | Bảng `checkins`, `streakService` (ngày có bài đã duyệt, lần ôn thẻ, điểm danh tay). Thẻ streak ở Hôm nay (chuỗi ngày, vòng 4/5, dải 7 ngày, nút điểm danh). Trang `/calendar` và tab Lịch trong Tiến bộ: ô tô màu theo mức kèm icon từng loại, drawer chi tiết ngày, điểm danh bù, tổng tháng. Cài đặt "Streak tính cả ngày tự học" |
+| Điều hướng | Thanh dưới 5 mục như B7: Hôm nay · Luyện (`/practice` chọn nói hoặc viết) · Ôn · Sổ lỗi · Tiến bộ. Thanh bên trên máy tính có thêm Lịch luyện tập, Lịch sử, Kho đề |
+
+**Khác với đặc tả hoặc cần biết:**
+- `ts-fsrs` 6 đổi tên trường so với bản trong `plan.md` (FSRS-7: `dueAt`, `stabilityFast`, `scheduleStatus`…). Bảng `cards` lưu đúng các trường này, thời gian dạng mili giây.
+- `ts-fsrs` 6 cần **Node 24**: `package.json` đổi `engines.node` thành `>=24`. Trên Vercel phải chọn Node 24 trong Project Settings.
+- Migration `0002`: SQLite không cho `ADD COLUMN` với mặc định là biểu thức, nên `topics.created_at` của đề cũ là 0. Đề mới lấy thời gian từ app.
+- Phát hiện khi chụp màn hình: scanner icon của `@nuxt/icon` mặc định bỏ qua file `.ts`, nên icon khai báo trong `app/constants` không được đóng gói và không hiện. Đã sửa (`globInclude: ['**/*.{vue,ts}']`) và thêm `tests/icons.test.ts` (tên icon sai, emoji).
+- Màn hình Hôm nay chưa có tuỳ chọn "chọn tag ưu tiên trong tuần" (N3, tuỳ chọn). Đề hôm nay vẫn xoay vòng trong các đề đang bật.
 
 **Còn mở:**
 - **F1, `maxDuration`:** chưa đổi, vẫn 60 giây. Theo hiểu biết hiện tại, Vercel Hobby có Fluid compute cho phép tới 300 giây. Cần kiểm tra trang Vercel Functions Limits rồi mới tăng, vì đặt quá giới hạn của gói thì deploy lỗi.
-- **Migration trên Turso:** đã chạy `db:migrate` cho DB dev. Trước khi deploy cần chạy `npm run db:migrate` với `DATABASE_URL` của Turso (thêm cột `processing_at`).
+- **Trước khi deploy:**
+  - chạy `npm run db:migrate` với `DATABASE_URL` của Turso (migration `0001` đến `0004`)
+  - chạy `npm run db:backfill-cards` một lần để có thẻ ôn cho các lỗi đã duyệt trước đây
+  - chạy `npm run db:seed` để thêm hai đề benchmark
+  - chọn Node 24 trên Vercel
+- Chưa thử trên điện thoại thật và Safari iOS (ghi âm, bấm giờ TOEIC, chạm từng từ ở bước tự tìm lỗi).
 
 # Phần A. Review code
 

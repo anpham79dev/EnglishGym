@@ -68,6 +68,10 @@ topics ──< attempts ──< mistake_hits >── mistakes
               │
               └─ attempt_group_id: các lần nói lại / phiên bản bài viết cùng nhóm, version tăng dần
 
+mistake_hits ──1:1── cards ──< review_logs >── quizzes     // N5, N6
+mistakes ··· focus_log (không khoá ngoại)                  // N7: lỗi trọng tâm theo thời gian
+checkins                                                   // N11: điểm danh tự học
+
 rate_counters: key → (window_start, count)   // giới hạn đăng nhập sai và lượt gọi Gemini/ngày
 ```
 
@@ -76,6 +80,11 @@ rate_counters: key → (window_start, count)   // giới hạn đăng nhập sai
 | `attempts` | Một lần nộp bài nói hoặc viết | `client_attempt_id` unique (chống gửi trùng) |
 | `mistakes` | Một **kiểu** lỗi, không phải một lần sai | `pattern_key` unique; `hit_count`, `first_seen`, `last_seen` luôn tính lại từ hits |
 | `mistake_hits` | Một lần mắc lỗi trong một lượt nộp | Unique `(attempt_id, issue_index)`: xác nhận hai lần không đếm trùng |
+| `cards` | Thẻ ôn FSRS, một thẻ cho mỗi lần mắc đã duyệt | `hit_id` unique; tối đa 3 thẻ hoạt động mỗi kiểu lỗi, còn lại `suspended` |
+| `review_logs` | Một lần ôn thẻ (cả bài kiểm tra tuần) | Lưu trạng thái trước khi ôn do ts-fsrs trả về; `quiz_id` khi thuộc bài kiểm tra |
+| `quizzes` | Bài kiểm tra tuần | `card_ids` là mảng JSON; `score` = tỉ lệ Được + Dễ |
+| `checkins` | Điểm danh ngày tự học ngoài app | `date` là `YYYY-MM-DD` theo giờ Việt Nam |
+| `focus_log` | Lỗi trọng tâm từ lúc nào đến lúc nào | Không có khoá ngoại để lịch sử còn khi kiểu lỗi bị gộp |
 | `rate_counters` | Bộ đếm theo cửa sổ thời gian cố định | Lưu trong DB vì serverless function không giữ RAM giữa các lần gọi |
 
 Các trường của `attempts` cần chú ý:
@@ -85,6 +94,13 @@ Các trường của `attempts` cần chú ý:
 - `final_transcript`: bản người dùng đã sửa và chốt khi xác nhận.
 - `model`, `prompt_version`: để so sánh khi đổi model hoặc prompt.
 - `processing_at`: lần gần nhất chuyển sang `processing`, dùng để phát hiện bài chấm bị kẹt.
+- `source`: `gemini`, `manual` (tự duyệt, `ai_json` rỗng) hoặc `pasted` (JSON dán từ AI khác, giữ nguyên chuỗi).
+- `is_benchmark`: bài theo đề có tag `benchmark`, dùng cho so sánh hằng tháng.
+- `self_marked_count`: số chỗ tự đánh dấu ở bước tự tìm lỗi; `null` nếu bỏ qua bước này.
+- `timed_result`: `in_time` hoặc `overtime` với đề có bấm giờ (TOEIC).
+
+Ngày trong app (streak, lịch, thống kê tuần, hạn mức Gemini) luôn tính theo giờ Việt Nam bằng
+`shared/utils/streak.ts`, nên server và client không lệch nhau.
 
 Thời gian lưu dạng mili-giây (`integer`). Mọi khoá chính là UUID dạng text, nhờ vậy xuất/nhập không bị
 xung đột id.

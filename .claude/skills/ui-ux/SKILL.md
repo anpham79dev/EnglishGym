@@ -22,7 +22,8 @@ App luyện nói/viết cho một người, dùng chủ yếu trên điện tho�
 
 - Không dùng emoji hay ký tự đặc biệt làm icon (☀ 🎙 ✎ ★ ⋯ → ● ■…) ở bất kỳ đâu: nhãn, nút, toast, modal, điều hướng, chuỗi kết quả. Kể cả trong text gửi AI và file xuất.
 - Chỉ dùng Lucide qua `UIcon` hoặc prop `icon` của component Nuxt UI. Khi Lucide không có icon phù hợp, vẽ SVG riêng dùng `currentColor`, đặt trong `app/assets/icons/` và khai báo thành bộ icon của `@nuxt/icon`.
-- Icon được đóng gói (`clientBundle.scan`), nên tên icon phải là chuỗi literal `i-lucide-...` trong code để scanner thấy.
+- Icon được đóng gói (`clientBundle.scan`, quét cả `.vue` và `.ts`), nên tên icon phải là chuỗi literal `i-lucide-...` trong code để scanner thấy. Không ghép tên icon động.
+- `tests/icons.test.ts` báo lỗi khi tên icon không có trong Lucide hoặc có emoji trong `app/`. Class Tailwind cũng phải là chuỗi literal (không `text-${color}`).
 - Icon trang trí: `aria-hidden="true"`. Nút chỉ có icon: bắt buộc `aria-label`.
 - Icon cho từng khái niệm:
 
@@ -41,6 +42,13 @@ App luyện nói/viết cho một người, dùng chủ yếu trên điện tho�
 | Ôn (N5) / Tiến bộ (N7) | `i-lucide-repeat` / `i-lucide-chart-line` |
 | Streak / điểm danh / tự học (N11) | `i-lucide-flame` / `i-lucide-calendar-check` / `i-lucide-book-open` |
 | Kho đề (N3) | `i-lucide-library` |
+| Luyện (tab chọn nói/viết) | `i-lucide-dumbbell` |
+| Kiểm tra tuần (N6) | `i-lucide-clipboard-check` |
+| Tự tìm lỗi (N9) | `i-lucide-scan-search` |
+| So sánh phiên bản (N10) | `i-lucide-git-compare` |
+| Bấm giờ TOEIC (N8) | `i-lucide-timer` |
+| Bài đối chứng (N7) | `i-lucide-target` |
+| Tự duyệt / dán JSON (N1, N2) | `i-lucide-user-check` / `i-lucide-clipboard-paste` |
 
 Hằng số dùng lại nằm trong `app/constants/index.ts`: `NAV_ITEMS`, `KIND_ICONS`, `KIND_LABELS`, `STATUS_LABELS`, `STATUS_COLORS`.
 
@@ -66,12 +74,20 @@ Không dùng `alert()`, `confirm()`, `prompt()` của trình duyệt.
 
 ## Bố cục
 
+- Thanh dưới 5 mục: Hôm nay · Luyện · Ôn · Sổ lỗi · Tiến bộ (`NAV_ITEMS`, mỗi mục có `match` cho các trang con). Thêm mục mới vào menu hoặc thanh bên, không thêm vào thanh dưới.
+
 - Điện thoại: header gọn (logo + menu), thanh dưới cố định (`LayoutBottomNav`), nội dung `pb-28` để không bị che.
 - Từ 1024px (`lg`): thanh bên trái `LayoutSideNav` rộng 240px, bỏ thanh dưới. Trang thường `max-w-2xl`, trang 2 cột `max-w-5xl`.
 - Nút chính của màn hình nhập liệu (Nộp, Lưu) nằm trong thanh dính đáy: `sticky bottom-20 lg:bottom-4`, nền `bg-default/90 backdrop-blur`, để không bị bàn phím ảo và thanh dưới che.
 - Màn duyệt bài: điện thoại dùng tab, máy tính chia 2 cột (`lg:grid-cols-2`).
 - Tôn trọng vùng an toàn: `pt-[env(safe-area-inset-top)]`, `pb-[env(safe-area-inset-bottom)]`.
 - Vùng chạm tối thiểu 44px (`min-h-11`, nút `size="lg"` cho hành động chính).
+
+## Biểu đồ
+
+- Tải skill `dataviz` trước khi vẽ biểu đồ. Dùng lại `<ProgressWeekChart>`: mỗi chỉ số một biểu đồ nhỏ một series, không gộp hai trục.
+- Màu series là `--chart-series` (teal-600), đã chạy validator cho cả nền sáng và tối. Chữ trên biểu đồ dùng token chữ, không dùng màu series.
+- Luôn có tooltip khi rê/chạm và nút "Xem bảng số".
 
 ## UX riêng của app
 
