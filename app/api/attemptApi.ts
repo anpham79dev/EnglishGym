@@ -68,6 +68,7 @@ export const submitWriting = (body: {
     attemptGroupId?: string | null
     text: string
     choice?: GradeChoice
+    timedResult?: 'in_time' | 'overtime' | null
 }) => {
     const { choice, ...rest } = body
     return $fetch<Attempt>('/api/attempts/writing', {
@@ -84,6 +85,7 @@ export const submitSpeaking = (input: {
     durationS: number
     blob: Blob
     choice?: GradeChoice
+    timed?: boolean
 }) => {
     const mode = input.choice?.mode ?? 'ai'
     const form = new FormData()
@@ -93,6 +95,8 @@ export const submitSpeaking = (input: {
     form.append('mimeType', input.mimeType)
     form.append('durationS', String(Math.max(1, Math.round(input.durationS))))
     form.append('mode', mode)
+    // N8: the recorder stops at the response time, so a timed answer is always in time.
+    if (input.timed) form.append('timedResult', 'in_time')
     if (input.choice?.pastedJson) form.append('pastedJson', input.choice.pastedJson)
     if (input.choice?.transcript) form.append('transcript', input.choice.transcript)
     // Audio is only uploaded for AI grading; it is never stored on the server.

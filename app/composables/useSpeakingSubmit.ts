@@ -33,6 +33,7 @@ export const useSpeakingSubmit = () => {
                 durationS: item.durationS,
                 blob: item.blob,
                 choice,
+                timed: item.timed,
             })
             // Keep it in the "not sent" queue until the server has really graded it.
             if (!isGraded(attempt)) return await fail(notGradedFailure())

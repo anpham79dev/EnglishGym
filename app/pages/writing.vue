@@ -37,6 +37,28 @@ let failedText: string | null = null
 const topic = computed(() => topics.value.find((t) => t.id === draft.topicId) ?? null)
 const words = computed(() => countWords(draft.text))
 
+// N8: timed topic. The clock starts with the first keystroke; going over only warns, the
+// text box stays editable, and the attempt records whether it was finished in time.
+const timeLimit = computed(() => topic.value?.responseS ?? null)
+const timerStart = ref<number | null>(null)
+const now = ref(Date.now())
+let clock: ReturnType<typeof setInterval> | undefined
+watch(
+    () => draft.text,
+    (text) => {
+        if (timeLimit.value && text && timerStart.value === null) timerStart.value = Date.now()
+    },
+)
+watch(timeLimit, () => (timerStart.value = null))
+onMounted(() => (clock = setInterval(() => (now.value = Date.now()), 1000)))
+onBeforeUnmount(() => clearInterval(clock))
+const timeLeft = computed(() =>
+    timeLimit.value && timerStart.value !== null
+        ? timeLimit.value - Math.floor((now.value - timerStart.value) / 1000)
+        : timeLimit.value,
+)
+const overtime = computed(() => timeLeft.value !== null && timeLeft.value < 0)
+
 onMounted(async () => {
     const fromId = route.query.from as string | undefined
     if (fromId) {
@@ -100,6 +122,7 @@ const submit = async (choice?: GradeChoice) => {
             attemptGroupId: draft.attemptGroupId,
             text: draft.text,
             choice,
+            timedResult: timeLimit.value ? (overtime.value ? 'overtime' : 'in_time') : null,
         })
         // Keep the draft until the server has really graded it.
         if (!isGraded(attempt)) return await fail(notGradedFailure())
@@ -122,6 +145,7 @@ const clearDraft = async () => {
     if (!ok) return
     await db.drafts.delete('current')
     failedText = null
+    timerStart.value = null
     Object.assign(draft, { text: '', clientAttemptId: crypto.randomUUID(), attemptGroupId: null })
 }
 
@@ -208,6 +232,22 @@ watch(failure, (f) => f && shouldOfferManualPrompt(f) && (showFallback.value = t
             <span class="flex-1 text-sm text-muted tabular-nums">
                 {{ words }} từ · {{ draft.text.length }}/{{ MAX_WRITING_CHARS }}
             </span>
+            <UBadge
+                v-if="timeLimit"
+                :color="overtime ? 'warning' : 'neutral'"
+                variant="subtle"
+                size="lg"
+                icon="i-lucide-timer"
+                class="tabular-nums"
+                :label="
+                    overtime
+                        ? `Quá giờ ${formatDuration(-timeLeft!)}`
+                        : timerStart === null
+                          ? `${formatDuration(timeLimit)}, tính khi bắt đầu gõ`
+                          : formatDuration(timeLeft!)
+                "
+                aria-live="polite"
+            />
             <UButton
                 size="lg"
                 icon="i-lucide-send"

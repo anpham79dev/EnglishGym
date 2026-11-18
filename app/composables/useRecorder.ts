@@ -15,7 +15,15 @@ const pickMime = () => {
     return RECORDER_MIME_CANDIDATES.find((m) => MediaRecorder.isTypeSupported(m)) ?? ''
 }
 
-export const useRecorder = (onDone: (rec: Recording) => void) => {
+/**
+ * MediaRecorder wrapper. `maxSeconds` is a getter so a timed topic (N8) can shorten it.
+ * `acquire()` opens the mic on its own: call it from a tap, because Safari iOS only allows
+ * getUserMedia inside a user gesture, then `start(stream)` later (after a prep countdown).
+ */
+export const useRecorder = (
+    onDone: (rec: Recording) => void,
+    maxSeconds: () => number = () => MAX_RECORD_SECONDS,
+) => {
     const state = ref<RecorderState>('idle')
     const elapsed = ref(0)
     const level = ref(0)
@@ -57,15 +65,15 @@ export const useRecorder = (onDone: (rec: Recording) => void) => {
         tick()
     }
 
-    const start = async () => {
+    /** Open the microphone; returns null and sets `error` when it cannot. */
+    const acquire = async (): Promise<MediaStream | null> => {
         error.value = null
-        const mime = pickMime()
-        if (mime === null || !navigator.mediaDevices?.getUserMedia) {
+        if (pickMime() === null || !navigator.mediaDevices?.getUserMedia) {
             error.value = 'Trình duyệt này không hỗ trợ ghi âm.'
-            return
+            return null
         }
         try {
-            stream = await navigator.mediaDevices.getUserMedia({
+            return await navigator.mediaDevices.getUserMedia({
                 audio: { echoCancellation: true, noiseSuppression: true },
             })
         } catch (e) {
@@ -76,8 +84,14 @@ export const useRecorder = (onDone: (rec: Recording) => void) => {
                     : name === 'NotFoundError'
                       ? 'Không tìm thấy micro.'
                       : `Không mở được micro (${name}).`
-            return
+            return null
         }
+    }
+
+    const start = async (preAcquired?: MediaStream | null) => {
+        const mime = pickMime()
+        stream = preAcquired ?? (await acquire())
+        if (!stream || mime === null) return
 
         chunks = []
         peak = 0
@@ -105,7 +119,7 @@ export const useRecorder = (onDone: (rec: Recording) => void) => {
         state.value = 'recording'
         timer = setInterval(() => {
             elapsed.value = Math.floor((Date.now() - startedAt) / 1000)
-            if (elapsed.value >= MAX_RECORD_SECONDS) stop()
+            if (elapsed.value >= maxSeconds()) stop()
         }, 250)
     }
 
@@ -122,5 +136,5 @@ export const useRecorder = (onDone: (rec: Recording) => void) => {
 
     onBeforeUnmount(reset)
 
-    return { state, elapsed, level, error, start, stop, reset }
+    return { state, elapsed, level, error, acquire, start, stop, reset }
 }

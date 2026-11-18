@@ -46,6 +46,8 @@ const form = reactive<Required<TopicInput>>({
     level: 'B1',
     tags: '',
     active: true,
+    prepS: null,
+    responseS: null,
 })
 const saving = ref(false)
 const openForm = (t?: Topic) => {
@@ -57,6 +59,8 @@ const openForm = (t?: Topic) => {
         level: t?.level ?? 'B1',
         tags: t?.tags ?? '',
         active: t?.active ?? true,
+        prepS: t?.prepS ?? null,
+        responseS: t?.responseS ?? null,
     })
     formOpen.value = true
 }
@@ -227,6 +231,14 @@ const onImport = async (ev: Event) => {
                             :label="t.level"
                         />
                         <UBadge
+                            v-if="t.responseS"
+                            color="neutral"
+                            variant="soft"
+                            size="sm"
+                            icon="i-lucide-timer"
+                            :label="`${t.prepS ?? 0}s / ${t.responseS}s`"
+                        />
+                        <UBadge
                             v-for="tg in tagsOf(t)"
                             :key="tg"
                             color="primary"
@@ -346,6 +358,30 @@ const onImport = async (ev: Event) => {
                         >
                             <UInput
                                 v-model="form.tags"
+                                class="w-full"
+                            />
+                        </UFormField>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <UFormField
+                            label="Chuẩn bị (giây)"
+                            help="Để trống nếu không bấm giờ."
+                        >
+                            <UInputNumber
+                                v-model="form.prepS"
+                                :min="0"
+                                :max="600"
+                                class="w-full"
+                            />
+                        </UFormField>
+                        <UFormField
+                            label="Trả lời (giây)"
+                            help="Dạng đề TOEIC S&amp;W."
+                        >
+                            <UInputNumber
+                                v-model="form.responseS"
+                                :min="10"
+                                :max="3600"
                                 class="w-full"
                             />
                         </UFormField>

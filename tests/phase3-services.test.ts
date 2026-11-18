@@ -123,3 +123,39 @@ describe('N10: so sánh phiên bản', () => {
         ])
     })
 })
+
+describe('N8: đề TOEIC có bấm giờ', () => {
+    it('đề lưu thời gian chuẩn bị và trả lời, bài lưu kết quả trong giờ hay quá giờ', async () => {
+        const { importTopics } = await import('../server/services/topicService')
+        const res = await importTopics(
+            'json',
+            JSON.stringify([
+                {
+                    kind: 'speaking',
+                    title: 'Express an opinion',
+                    prompt: 'Do you prefer...',
+                    tags: 'toeic-sw,opinion',
+                    prepS: 30,
+                    responseS: 60,
+                },
+            ]),
+        )
+        expect(res.added).toBe(1)
+        const topic = await useDb().query.topics.findFirst({
+            where: eq(schema.topics.title, 'Express an opinion'),
+        })
+        expect(topic).toMatchObject({ prepS: 30, responseS: 60 })
+
+        const a = await submitAttempt(
+            {
+                kind: 'writing',
+                clientAttemptId: randomUUID(),
+                topicId: topic!.id,
+                text: TEXT,
+                timedResult: 'overtime',
+            },
+            fakeGrade(),
+        )
+        expect(a.timedResult).toBe('overtime')
+    })
+})

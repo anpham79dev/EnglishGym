@@ -52,6 +52,7 @@ const onRecorded = async (rec: Recording) => {
         attemptGroupId: groupId,
         createdAt: Date.now(),
         status: 'pending',
+        timed: !!topic.value?.responseS,
     }
     // Persist right away so nothing is lost.
     await useLocalDb().audios.put(item)
@@ -93,6 +94,9 @@ const sendWithoutAi = (choice: GradeChoice) =>
 
         <SpeakingRecorderPanel
             v-if="!current"
+            :key="topicId ?? 'free'"
+            :prep-seconds="topic?.prepS"
+            :response-seconds="topic?.responseS"
             @recorded="onRecorded"
         />
 

@@ -54,7 +54,13 @@ const niceMax = computed(() => {
     const step = 10 ** Math.floor(Math.log10(m))
     return Math.ceil(m / step) * step
 })
-const ticks = computed(() => [0, niceMax.value / 2, niceMax.value])
+/** Mid tick only when it is a value the format can show exactly (no "2" for 1.5 days). */
+const ticks = computed(() => {
+    const mid = niceMax.value / 2
+    return props.format(mid) === props.format(Math.round(mid)) && !Number.isInteger(mid)
+        ? [0, niceMax.value]
+        : [0, mid, niceMax.value]
+})
 
 const n = computed(() => props.points.length)
 const band = computed(() => innerW.value / Math.max(1, n.value))
@@ -129,13 +135,13 @@ const labelEvery = computed(() => Math.ceil(n.value / Math.max(1, Math.floor(inn
                     {{ description }}
                 </p>
             </div>
-            <div class="text-right">
+            <div class="shrink-0 text-right">
                 <p class="text-2xl font-semibold text-highlighted tabular-nums">
                     {{ latest === null ? '–' : format(latest) }}
                 </p>
                 <p
                     v-if="change !== null && change !== 0"
-                    class="flex items-center justify-end gap-0.5 text-xs tabular-nums"
+                    class="flex items-center justify-end gap-0.5 text-xs whitespace-nowrap tabular-nums"
                     :class="changeGood ? 'text-success' : 'text-warning'"
                 >
                     <UIcon
@@ -143,7 +149,7 @@ const labelEvery = computed(() => Math.ceil(n.value / Math.max(1, Math.floor(inn
                         class="size-3.5"
                         aria-hidden="true"
                     />
-                    {{ format(Math.abs(change)) }} so với tuần trước
+                    {{ format(Math.abs(change)) }} so tuần trước
                 </p>
             </div>
         </div>

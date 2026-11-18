@@ -91,6 +91,20 @@ const retryAgain = () =>
                         :label="STATUS_LABELS[attempt.status]"
                     />
                     <UBadge
+                        v-if="attempt.timedResult"
+                        :color="attempt.timedResult === 'in_time' ? 'success' : 'warning'"
+                        variant="soft"
+                        icon="i-lucide-timer"
+                        :label="attempt.timedResult === 'in_time' ? 'Xong trong giờ' : 'Quá giờ'"
+                    />
+                    <UBadge
+                        v-if="attempt.isBenchmark"
+                        color="neutral"
+                        variant="soft"
+                        icon="i-lucide-target"
+                        label="Đối chứng"
+                    />
+                    <UBadge
                         v-if="attempt.source !== 'gemini'"
                         color="neutral"
                         variant="soft"

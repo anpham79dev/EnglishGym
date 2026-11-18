@@ -7,6 +7,9 @@ export interface TopicInput {
     level?: string
     tags?: string
     active?: boolean
+    /** N8: TOEIC-style timing in seconds; null = untimed. */
+    prepS?: number | null
+    responseS?: number | null
 }
 
 export interface TopicImportResult {

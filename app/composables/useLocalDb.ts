@@ -14,6 +14,8 @@ export interface LocalAudio {
     status: 'pending' | 'sent'
     attemptId?: string
     lastError?: string
+    /** N8: recorded on a timed topic (auto-stopped at the response time). */
+    timed?: boolean
 }
 
 export interface WritingDraft {
