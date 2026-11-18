@@ -6,6 +6,7 @@ lỗi đã duyệt được lưu vào sổ để ôn và làm lại.
 ## Công nghệ
 
 - **Nuxt 4** (Vue 3, TypeScript), chạy dạng SPA
+- **Nuxt UI 4** + **Tailwind CSS 4** cho giao diện, icon Lucide, font Inter (có bộ tiếng Việt), sáng/tối
 - **Nitro** `server/api` cho backend
 - **Drizzle ORM** + **Turso / SQLite**
 - **Gemini API** (`@google/genai`) để chép lời và gợi ý lỗi

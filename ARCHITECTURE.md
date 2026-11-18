@@ -37,7 +37,7 @@ Nguyên tắc chính:
 | --- | --- | --- | --- |
 | Trang | `app/pages/` | Ghép component, đọc query, điều hướng | Chứa logic nghiệp vụ dài |
 | Component theo tính năng | `app/components/{speaking,review,mistakes}/` | UI của một tính năng | Gọi `$fetch` trực tiếp |
-| Component dùng chung | `app/components/{base,layout}/` | Toast, CopyPrompt, TopicSelect, menu, thanh điều hướng | Biết về một tính năng cụ thể |
+| Component dùng chung | `app/components/{base,layout}/` | `LayoutPage` (khung trang), thanh dưới/thanh bên, menu, `BaseConfirmDialog`, `BaseCorrectionPair`, CopyPrompt, TopicSelect | Biết về một tính năng cụ thể |
 | Composable | `app/composables/` | Trạng thái và logic phía client: ghi âm, IndexedDB, form duyệt, gửi bài nói | Render UI |
 | Client API | `app/api/` | Một file cho mỗi domain, gom URL và kiểu trả về; `http.ts` chuẩn hoá lỗi | Giữ state |
 | Route | `server/api/` | Validate đầu vào bằng Zod, gọi service, trả kết quả | Viết SQL hoặc gọi Gemini trực tiếp |
@@ -45,6 +45,13 @@ Nguyên tắc chính:
 | Tiện ích server | `server/utils/` | Cookie phiên, scrypt, rate limit, quota, helper HTTP | Nghiệp vụ |
 | Dùng chung | `shared/` | Hàm thuần, kiểu, hằng số, prompt, schema | Phụ thuộc Nuxt, DOM hay DB |
 | Script | `scripts/` | Tạo user, seed đề, Buổi 0 | Import qua alias `#shared` |
+
+Giao diện dùng **Nuxt UI 4** (Tailwind 4). Màu, bo góc, font khai báo ở `app/app.config.ts` và
+`app/assets/css/main.css`; component chỉ dùng token màu (`text-muted`, `bg-elevated`, `text-primary`…),
+không viết mã màu thẳng. Icon chỉ dùng Lucide qua `UIcon` (đóng gói sẵn trong bundle, không gọi Iconify
+API), không dùng emoji hay ký tự làm icon. Thông báo dùng `useNotify()` (bọc `useToast` của Nuxt UI), hộp
+xác nhận dùng `useConfirm()` (modal qua `useOverlay`); không dùng `alert/confirm/prompt`. Trên điện thoại
+có thanh dưới, từ 1024px có thanh bên trái. Quy tắc chi tiết nằm trong skill `.claude/skills/ui-ux`.
 
 Kiểm tra kiểu: `tsconfig.json` ở gốc tham chiếu các tsconfig Nuxt sinh trong `.nuxt/` (app, server,
 shared, node) và `tsconfig.tools.json` cho `drizzle.config.ts`, `scripts/`, `tests/` (có kiểu Node).

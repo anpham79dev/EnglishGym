@@ -40,6 +40,24 @@ File có hai phần:
 - `npm test` lỗi ngay từ đầu (`Cannot read properties of undefined (reading 'config')`) khi thư mục mở bằng ổ đĩa chữ thường (`d:\`, cách VS Code mở). Vitest nạp hai bản của chính nó. `vitest.config.ts` đã ghim `vitest` về một bản.
 - Script sao lưu kéo theo `backupService.ts` và `mistakeService.ts`, nên hai file này import `shared/` bằng đường dẫn tương đối. `tsconfig.tools.json` thêm `paths` cho `#shared` (chỉ dùng cho import kiểu).
 
+## Trạng thái phần B (cập nhật 18/11/2026)
+
+**B7 (giai đoạn 1a) đã làm xong:**
+- Cài `@nuxt/ui` 4.12.2 (kèm Tailwind 4.3, `@nuxt/icon`, `@nuxt/fonts`, color mode) và `@iconify-json/lucide`. Icon được đóng gói vào bundle (80 icon, khoảng 22 KB), `fallbackToApi: false` nên không gọi Iconify lúc chạy. `/api/_nuxt_icon` được miễn auth.
+- Font Inter tải lúc build và phục vụ từ app, có subset `vietnamese`.
+- Theme: `app/app.config.ts` (primary teal, neutral slate), `main.css` chỉ còn Tailwind, Nuxt UI, style của `mark` và `.prewrap`. Màu chính ở chế độ sáng là teal-700 (`#0f766e`, giữ màu cũ) để chữ trắng đủ tương phản; màu success/error/warning ở chế độ sáng cũng đậm hơn mặc định. Tôn trọng `prefers-reduced-motion`.
+- Bỏ `useToast`/`Toast.vue` tự viết, thay bằng `useNotify()` dựng trên `useToast` của Nuxt UI. Thêm `useConfirm()` + `BaseConfirmDialog` (mở bằng `useOverlay`). Không còn `alert()`, `confirm()`, `prompt()`: tách lỗi dùng modal, kết quả nhập dùng modal có bảng Trước / Sau / Trong file / Bỏ qua.
+- Không còn emoji hay ký tự làm icon trong `app/` (đã quét bằng script). Thêm `BaseCorrectionPair` (icon `i-lucide-arrow-right`, có nhãn "Sai"/"Đúng" cho trình đọc màn hình).
+- Bố cục: thanh dưới 4 mục trên điện thoại, thanh bên trái (`UNavigationMenu`, có thêm Lịch sử) từ 1024px, header gọn với menu `UDropdownMenu` (Lịch sử, xuất/nhập, giao diện Theo máy/Sáng/Tối, xoá audio, đăng xuất). `LayoutPage` làm khung cho mọi trang.
+- Làm lại mọi màn hình: Đăng nhập, Hôm nay (thẻ đề lớn, skeleton khi tải, nút "Sao lưu ngay" ngay trong thông báo), Luyện nói (nút ghi âm tròn, vòng tiến độ, thanh mức âm), Luyện viết (ô viết cao, thanh đếm từ và nút Nộp dính đáy), Duyệt bài (điện thoại có tab Bài/Lỗi, máy tính chia 2 cột, công tắc giữ/bỏ, sửa lỗi trong slideover, lỗi đáng ngờ viền vàng, nút Lưu dính đáy), Sổ lỗi (tìm kiếm, chip lọc nhóm lỗi, chi tiết trong slideover, gộp và tách trong modal), Lịch sử (dòng thời gian theo ngày, badge trạng thái có màu).
+- Xuất file đi qua `useBackup()` (fetch rồi tải blob), nên lỗi 413 hiện thành toast thay vì mở trang JSON lỗi.
+- Đã kiểm tra bằng ảnh chụp 390px và 1280px, sáng và tối, cho mọi màn hình cùng menu, slideover chi tiết lỗi và slideover sửa lỗi. Không có lỗi JS, request hỏng hay icon thiếu. `typecheck`, `npm test`, `build` đều qua. Tổng dung lượng build gần như không đổi (5,85 MB lên 5,88 MB).
+- Tạo skill dự án `.claude/skills/ui-ux/SKILL.md`.
+
+**Khác với kế hoạch B7:** chưa dựng mockup để chọn phong cách, mà dùng luôn đề xuất mặc định (tối giản, teal, Inter, Lucide). Muốn đổi thì sửa `app.config.ts` và `main.css`. Thanh dưới giữ 4 mục hiện có; bố cục 5 mục (Hôm nay · Luyện · Ôn · Sổ lỗi · Tiến bộ) sẽ áp dụng khi có N5 và N7. Chưa thử trên điện thoại thật và Safari iOS.
+
+**Phần B còn lại chưa làm:** B4, N1–N11.
+
 **Còn mở:**
 - **F1, `maxDuration`:** chưa đổi, vẫn 60 giây. Theo hiểu biết hiện tại, Vercel Hobby có Fluid compute cho phép tới 300 giây. Cần kiểm tra trang Vercel Functions Limits rồi mới tăng, vì đặt quá giới hạn của gói thì deploy lỗi.
 - **Migration trên Turso:** đã chạy `db:migrate` cho DB dev. Trước khi deploy cần chạy `npm run db:migrate` với `DATABASE_URL` của Turso (thêm cột `processing_at`).

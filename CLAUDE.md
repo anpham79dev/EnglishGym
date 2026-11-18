@@ -45,6 +45,7 @@ Nuxt 4 full-stack app in SPA mode (`ssr: false`), because MediaRecorder and Inde
   Changing a prompt means bumping `PROMPT_VERSION` in `shared/constants/app.ts`. Every attempt stores `model` and `prompt_version`.
 - `server/api/*` routes stay thin: validate with Zod (`parseBody`/`parseQuery`/`validationError` in `server/utils/http.ts`), then call `server/services/*`. Routes that only read one table (`topics.get`, `auth/*`) may query directly. Routes use Nitro auto-imports; services and `server/utils` import h3 helpers and each other explicitly.
 - `app/api/*` contains the client fetch functions, one file per domain (this layout follows the user's CRM project). Pages stay thin; feature components live in `app/components/<feature>/` and are auto-imported with a folder prefix (e.g. `<SpeakingRecorderPanel>`).
+- UI is Nuxt UI 4 on Tailwind 4. Follow the project skill `.claude/skills/ui-ux` for any screen work: theme tokens only (no hex colours in components), Lucide icons via `UIcon` only (no emoji or symbol characters as icons), `useNotify()` for toasts, `useConfirm()` instead of `confirm()`, every page wrapped in `<LayoutPage>`. Icons are bundled (`icon.clientBundle.scan`, `fallbackToApi: false`), and `/api/_nuxt_icon` is exempt from auth.
 
 ### Core flow and invariants
 
