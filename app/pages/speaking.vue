@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { MAX_AUDIO_BYTES } from '#shared/constants/app'
-import { buildManualPrompt } from '#shared/utils/prompts'
+import { buildManualPrompt, topicToText } from '#shared/utils/prompts'
 import { fetchTopics } from '~/api/attemptApi'
 import { SILENCE_PEAK } from '~/constants'
 import type { Recording } from '~/composables/useRecorder'
@@ -64,12 +64,7 @@ const discard = async () => {
     toast.info('Đã bỏ bản ghi')
 }
 
-const manualPrompt = computed(() =>
-    buildManualPrompt(
-        'speaking',
-        topic.value ? `${topic.value.title}. ${topic.value.prompt}` : 'Free topic',
-    ),
-)
+const manualPrompt = computed(() => buildManualPrompt('speaking', topicToText(topic.value)))
 </script>
 
 <template>

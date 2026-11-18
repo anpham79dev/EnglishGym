@@ -1,0 +1,1 @@
+ALTER TABLE `attempts` ADD `processing_at` integer;

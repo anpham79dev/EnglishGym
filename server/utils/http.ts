@@ -1,5 +1,4 @@
-import { createError } from 'h3'
-import { getQuery, getRouterParam, readBody, type H3Event } from 'h3'
+import { createError, getQuery, getRouterParam, readBody, type H3Event } from 'h3'
 import type { z } from 'zod'
 import type { ApiErrorCode } from '#shared/types'
 
@@ -11,7 +10,8 @@ export const apiError = (
     extra: Record<string, unknown> = {},
 ) => createError({ statusCode, statusMessage: message, data: { code, ...extra } })
 
-const fail = (message: string, issues: unknown) =>
+/** 400 with Zod issues; the single shape for every validation error. */
+export const validationError = (issues: unknown, message = 'Dữ liệu không hợp lệ') =>
     createError({ statusCode: 400, statusMessage: message, data: { issues } })
 
 export const parseBody = async <T extends z.ZodType>(
@@ -19,13 +19,13 @@ export const parseBody = async <T extends z.ZodType>(
     schema: T,
 ): Promise<z.infer<T>> => {
     const result = schema.safeParse(await readBody(event))
-    if (!result.success) throw fail('Dữ liệu không hợp lệ', result.error.issues)
+    if (!result.success) throw validationError(result.error.issues)
     return result.data
 }
 
 export const parseQuery = <T extends z.ZodType>(event: H3Event, schema: T): z.infer<T> => {
     const result = schema.safeParse(getQuery(event))
-    if (!result.success) throw fail('Tham số không hợp lệ', result.error.issues)
+    if (!result.success) throw validationError(result.error.issues, 'Tham số không hợp lệ')
     return result.data
 }
 

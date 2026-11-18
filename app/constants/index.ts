@@ -22,7 +22,6 @@ export const CATEGORY_LABELS: Record<IssueCategory, string> = {
 }
 
 export const STATUS_LABELS: Record<AttemptStatus, string> = {
-    draft: 'Nháp',
     processing: 'Đang chấm',
     needs_review: 'Chờ duyệt',
     confirmed: 'Đã lưu',

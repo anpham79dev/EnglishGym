@@ -1,9 +1,15 @@
 <script setup lang="ts">
 import { MAX_WRITING_CHARS } from '#shared/constants/app'
 import { countWords } from '#shared/utils/kpi'
-import { buildManualPrompt } from '#shared/utils/prompts'
+import { buildManualPrompt, topicToText } from '#shared/utils/prompts'
 import { fetchAttempt, fetchTopics, submitWriting } from '~/api/attemptApi'
-import { shouldOfferManualPrompt, toApiFailure, type ApiFailure } from '~/api/http'
+import {
+    isGraded,
+    notGradedFailure,
+    shouldOfferManualPrompt,
+    toApiFailure,
+    type ApiFailure,
+} from '~/api/http'
 import type { WritingDraft } from '~/composables/useLocalDb'
 
 const route = useRoute()
@@ -23,6 +29,8 @@ const draft = reactive<WritingDraft>({
 const loaded = ref(false)
 const sending = ref(false)
 const failure = ref<ApiFailure | null>(null)
+/** Text of the last failed submit; editing after a failure starts a new attempt id. */
+let failedText: string | null = null
 
 const topic = computed(() => topics.value.find((t) => t.id === draft.topicId) ?? null)
 const words = computed(() => countWords(draft.text))
@@ -60,10 +68,29 @@ watch(
     },
 )
 
+// The failed request may still have been graded on the server; reusing its id would return
+// that old result and drop the edits. A fresh id grades the new text (the old one stays in
+// "Chờ bạn duyệt" if it did succeed).
+watch(
+    () => draft.text,
+    (text) => {
+        if (failedText === null || text === failedText) return
+        draft.clientAttemptId = crypto.randomUUID()
+        failedText = null
+    },
+)
+
 const submit = async () => {
     sending.value = true
     failure.value = null
+    failedText = null
     await db.drafts.put({ ...toRaw(draft), updatedAt: Date.now() })
+    const fail = async (f: ApiFailure) => {
+        failure.value = f
+        // Still being graded under this id: keep it so a resend picks up that result.
+        if (f.code !== 'IN_PROGRESS') failedText = draft.text
+        await db.drafts.update('current', { lastError: f.message })
+    }
     try {
         const attempt = await submitWriting({
             clientAttemptId: draft.clientAttemptId,
@@ -71,11 +98,12 @@ const submit = async () => {
             attemptGroupId: draft.attemptGroupId,
             text: draft.text,
         })
+        // Keep the draft until the server has really graded it.
+        if (!isGraded(attempt)) return await fail(notGradedFailure())
         await db.drafts.delete('current')
         await navigateTo(`/review/${attempt.id}`)
     } catch (e) {
-        failure.value = toApiFailure(e)
-        await db.drafts.update('current', { lastError: failure.value.message })
+        await fail(toApiFailure(e))
     } finally {
         sending.value = false
     }
@@ -84,15 +112,12 @@ const submit = async () => {
 const clearDraft = async () => {
     if (!confirm('Xoá bản nháp hiện tại?')) return
     await db.drafts.delete('current')
+    failedText = null
     Object.assign(draft, { text: '', clientAttemptId: crypto.randomUUID(), attemptGroupId: null })
 }
 
 const manualPrompt = computed(() =>
-    buildManualPrompt(
-        'writing',
-        topic.value ? `${topic.value.title}. ${topic.value.prompt}` : 'Free topic',
-        draft.text,
-    ),
+    buildManualPrompt('writing', topicToText(topic.value), draft.text),
 )
 </script>
 

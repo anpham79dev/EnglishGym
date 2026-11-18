@@ -1,23 +1,21 @@
-import { eq } from 'drizzle-orm'
-import { useDb, schema } from '../db'
 import { apiError } from './http'
-import { DAY_MS, hitCounter } from './rateLimit'
+import { APP_DAY_OFFSET_MS, DAY_MS, hitCounter, peekCounter } from './rateLimit'
 
-/** Enforce GEMINI_DAILY_LIMIT before calling Gemini. */
+const GEMINI_COUNTER = 'gemini:day'
+
+export const geminiDailyLimit = () => Number(process.env.GEMINI_DAILY_LIMIT || 40)
+
+/** Gemini calls made today (Vietnam day). */
+export const geminiUsedToday = () => peekCounter(GEMINI_COUNTER, DAY_MS, APP_DAY_OFFSET_MS)
+
+/** Enforce GEMINI_DAILY_LIMIT; call before every Gemini request, retries included. */
 export const consumeGeminiQuota = async () => {
-    const limit = Number(process.env.GEMINI_DAILY_LIMIT || 40)
-    const used = await hitCounter('gemini:day', DAY_MS)
+    const limit = geminiDailyLimit()
+    const used = await hitCounter(GEMINI_COUNTER, DAY_MS, APP_DAY_OFFSET_MS)
     if (used > limit)
         throw apiError(
             429,
             'DAILY_LIMIT',
             `Đã dùng hết ${limit} lượt chấm hôm nay. Dùng Copy prompt.`,
         )
-}
-
-export const topicText = async (topicId: string | null) => {
-    if (!topicId) return 'Free topic'
-    const topic = await useDb().query.topics.findFirst({ where: eq(schema.topics.id, topicId) })
-    if (!topic) throw apiError(400, 'AI_ERROR', 'Đề không tồn tại')
-    return `${topic.title}. ${topic.prompt}`
 }

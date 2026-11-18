@@ -18,13 +18,20 @@ export const buildSpeakingPrompt = (topic: string) =>
 export const buildWritingPrompt = (topic: string, text: string) =>
     `${CORE}\nThe source is the student's text below.\nTopic: ${topic}\n\n<student_text>\n${text}\n</student_text>`
 
-const MANUAL_FORMAT = `Answer with JSON only, in this shape:
-{"transcript": "...", "issues": [{"original_quote": "...", "suggested_correction": "...",
+const MANUAL_HEADER = 'Answer with JSON only, in this shape:\n{'
+const MANUAL_ISSUES = `"issues": [{"original_quote": "...", "suggested_correction": "...",
 "reason_vi": "...", "category": "grammar|tense|article|preposition|word_choice|collocation|plural|subject_verb_agreement|word_order|spelling|other",
 "pattern_key_suggestion": "..."}], "focus_pattern_suggestion": "..."}`
+
+export const MANUAL_FORMAT_SPEAKING = `${MANUAL_HEADER}"transcript": "...", ${MANUAL_ISSUES}`
+export const MANUAL_FORMAT_WRITING = `${MANUAL_HEADER}${MANUAL_ISSUES}`
+
+/** Topic description sent to the AI; one place so graded and manual prompts never drift. */
+export const topicToText = (topic: { title: string; prompt: string } | null | undefined) =>
+    topic ? `${topic.title}. ${topic.prompt}` : 'Free topic'
 
 /** Prompt to paste into another AI when Gemini fails. */
 export const buildManualPrompt = (kind: 'speaking' | 'writing', topic: string, text = '') =>
     kind === 'speaking'
-        ? `${buildSpeakingPrompt(topic)}\n\n${MANUAL_FORMAT}\n(Đính kèm file audio cùng prompt này.)`
-        : `${buildWritingPrompt(topic, text)}\n\n${MANUAL_FORMAT.replace('"transcript": "...", ', '')}`
+        ? `${buildSpeakingPrompt(topic)}\n\n${MANUAL_FORMAT_SPEAKING}\n(Đính kèm file audio cùng prompt này.)`
+        : `${buildWritingPrompt(topic, text)}\n\n${MANUAL_FORMAT_WRITING}`

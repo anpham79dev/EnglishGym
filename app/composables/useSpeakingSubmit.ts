@@ -1,8 +1,14 @@
 import { submitSpeaking } from '~/api/attemptApi'
-import { shouldOfferManualPrompt, toApiFailure, type ApiFailure } from '~/api/http'
+import {
+    isGraded,
+    notGradedFailure,
+    shouldOfferManualPrompt,
+    toApiFailure,
+    type ApiFailure,
+} from '~/api/http'
 import type { LocalAudio } from './useLocalDb'
 
-/** Submit a stored recording; on success mark it `sent` and open review. */
+/** Submit a stored recording; once graded, mark it `sent` and open review. */
 export const useSpeakingSubmit = () => {
     const sending = ref(false)
     const failure = ref<ApiFailure | null>(null)
@@ -13,6 +19,11 @@ export const useSpeakingSubmit = () => {
         failure.value = null
         failedItem.value = null
         const db = useLocalDb()
+        const fail = async (f: ApiFailure) => {
+            failure.value = f
+            failedItem.value = item
+            await db.audios.update(item.id, { lastError: f.message })
+        }
         try {
             const attempt = await submitSpeaking({
                 clientAttemptId: item.id,
@@ -22,6 +33,8 @@ export const useSpeakingSubmit = () => {
                 durationS: item.durationS,
                 blob: item.blob,
             })
+            // Keep it in the "not sent" queue until the server has really graded it.
+            if (!isGraded(attempt)) return await fail(notGradedFailure())
             await db.audios.update(item.id, {
                 status: 'sent',
                 attemptId: attempt.id,
@@ -29,10 +42,7 @@ export const useSpeakingSubmit = () => {
             })
             await navigateTo(`/review/${attempt.id}`)
         } catch (e) {
-            const f = toApiFailure(e)
-            failure.value = f
-            failedItem.value = item
-            await db.audios.update(item.id, { lastError: f.message })
+            await fail(toApiFailure(e))
         } finally {
             sending.value = false
         }

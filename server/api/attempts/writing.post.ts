@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { MAX_WRITING_CHARS } from '#shared/constants/app'
 import { submitAttempt } from '../../services/attemptService'
 import { gradeWithGemini } from '../../services/geminiService'
+import { topicText } from '../../services/topicService'
 
 const bodySchema = z.object({
     clientAttemptId: z.uuid(),
@@ -14,8 +15,10 @@ export default defineEventHandler(async (event) => {
     const body = await parseBody(event, bodySchema)
     const topic = await topicText(body.topicId)
 
-    return submitAttempt({ kind: 'writing', ...body }, async () => {
-        await consumeGeminiQuota()
-        return gradeWithGemini({ kind: 'writing', topic, text: body.text })
-    })
+    return submitAttempt({ kind: 'writing', ...body }, () =>
+        gradeWithGemini(
+            { kind: 'writing', topic, text: body.text },
+            { beforeCall: consumeGeminiQuota },
+        ),
+    )
 })

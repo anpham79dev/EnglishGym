@@ -1,9 +1,12 @@
 import { createError } from 'h3'
 import { randomUUID } from 'node:crypto'
-import { and, desc, eq, gte, lt, max, type SQL } from 'drizzle-orm'
+import { and, desc, eq, gte, isNull, lt, max, type SQL } from 'drizzle-orm'
+import { PROCESSING_STALE_MS } from '#shared/constants/app'
 import type { Attempt, AttemptKind, ConfirmBody } from '#shared/types'
+import { toPatternKey } from '#shared/utils/patternKey'
 import { useDb, schema } from '../db'
-import { recomputeMistake, toPatternKey } from './mistakeService'
+import { apiError } from '../utils/http'
+import { recomputeMistake } from './mistakeService'
 import type { GradeOutput } from './geminiService'
 
 const t = schema.attempts
@@ -45,28 +48,58 @@ export interface SubmitInput {
     text?: string | null
 }
 
-/**
- * Idempotent on client_attempt_id: an existing non-failed row is returned as is,
- * a failed row is re-graded in place.
- */
-export const submitAttempt = async (
-    input: SubmitInput,
-    grade: () => Promise<GradeOutput>,
-): Promise<Attempt> => {
-    const db = useDb()
-    const existing = await db.query.attempts.findFirst({
-        where: eq(t.clientAttemptId, input.clientAttemptId),
-    })
-    if (existing && existing.status !== 'failed') return existing
+/** True when a `processing` row has been stuck long enough to assume its function died. */
+export const isStaleProcessing = (a: Pick<Attempt, 'status' | 'processingAt' | 'createdAt'>) =>
+    a.status === 'processing' && Date.now() - (a.processingAt ?? a.createdAt) > PROCESSING_STALE_MS
 
-    let id = existing?.id
-    if (!id) {
-        id = randomUUID()
-        const groupId = input.attemptGroupId || id
-        const [row] = await db
-            .select({ v: max(t.version) })
-            .from(t)
-            .where(eq(t.attemptGroupId, groupId))
+const isUniqueViolation = (err: unknown): boolean => {
+    for (let e: unknown = err; e; e = (e as { cause?: unknown }).cause)
+        if (e instanceof Error && /UNIQUE constraint failed/i.test(e.message)) return true
+    return false
+}
+
+const findByClientId = (clientAttemptId: string) =>
+    useDb().query.attempts.findFirst({ where: eq(t.clientAttemptId, clientAttemptId) })
+
+/**
+ * Returns the row id to grade, or the existing row when there is nothing to grade.
+ * Graded rows are returned as is; failed and stale `processing` rows are re-graded in place;
+ * a fresh `processing` row means another request is grading it (409).
+ */
+const claimAttempt = async (input: SubmitInput): Promise<string | Attempt> => {
+    const db = useDb()
+    const existing = await findByClientId(input.clientAttemptId)
+    if (existing) {
+        if (existing.status === 'processing' && !isStaleProcessing(existing))
+            throw apiError(409, 'IN_PROGRESS', 'Bài đang được chấm, thử lại sau ít phút')
+        if (existing.status !== 'failed' && existing.status !== 'processing') return existing
+        // Conditional claim: if a parallel request re-claimed the row first, nothing matches.
+        const claimed = await db
+            .update(t)
+            .set({ status: 'processing', error: null, processingAt: Date.now() })
+            .where(
+                and(
+                    eq(t.id, existing.id),
+                    eq(t.status, existing.status),
+                    existing.processingAt === null
+                        ? isNull(t.processingAt)
+                        : eq(t.processingAt, existing.processingAt),
+                ),
+            )
+            .returning({ id: t.id })
+        if (!claimed.length)
+            throw apiError(409, 'IN_PROGRESS', 'Bài đang được chấm, thử lại sau ít phút')
+        return existing.id
+    }
+
+    const id = randomUUID()
+    const groupId = input.attemptGroupId || id
+    const [row] = await db
+        .select({ v: max(t.version) })
+        .from(t)
+        .where(eq(t.attemptGroupId, groupId))
+    const now = Date.now()
+    try {
         await db.insert(t).values({
             id,
             clientAttemptId: input.clientAttemptId,
@@ -78,11 +111,30 @@ export const submitAttempt = async (
             textOrTranscript: input.text ?? null,
             durationS: input.durationS ?? null,
             mimeType: input.mimeType ?? null,
-            createdAt: Date.now(),
+            createdAt: now,
+            processingAt: now,
         })
-    } else {
-        await db.update(t).set({ status: 'processing', error: null }).where(eq(t.id, id))
+    } catch (err) {
+        // A parallel request with the same client id inserted first: it is grading now.
+        if (isUniqueViolation(err) && (await findByClientId(input.clientAttemptId)))
+            throw apiError(409, 'IN_PROGRESS', 'Bài đang được chấm, thử lại sau ít phút')
+        throw err
     }
+    return id
+}
+
+/**
+ * Idempotent on client_attempt_id: graded rows are returned as is,
+ * failed or stuck rows are re-graded in place.
+ */
+export const submitAttempt = async (
+    input: SubmitInput,
+    grade: () => Promise<GradeOutput>,
+): Promise<Attempt> => {
+    const db = useDb()
+    const claimed = await claimAttempt(input)
+    if (typeof claimed !== 'string') return claimed
+    const id = claimed
 
     try {
         const out = await grade()
@@ -104,6 +156,30 @@ export const submitAttempt = async (
         throw err
     }
     return (await getAttempt(id))!
+}
+
+/** Attempt with its topic and confirmed hits, for the review page. */
+export const getAttemptDetail = async (id: string) => {
+    const attempt = await getAttempt(id)
+    if (!attempt) throw createError({ statusCode: 404, statusMessage: 'Không tìm thấy lượt nộp' })
+
+    const db = useDb()
+    const topic = attempt.topicId
+        ? await db.query.topics.findFirst({ where: eq(schema.topics.id, attempt.topicId) })
+        : null
+    const hits = await db
+        .select({
+            issueIndex: schema.mistakeHits.issueIndex,
+            originalQuote: schema.mistakeHits.originalQuote,
+            correction: schema.mistakeHits.correction,
+            patternKey: schema.mistakes.patternKey,
+            labelVi: schema.mistakes.labelVi,
+        })
+        .from(schema.mistakeHits)
+        .innerJoin(schema.mistakes, eq(schema.mistakes.id, schema.mistakeHits.mistakeId))
+        .where(eq(schema.mistakeHits.attemptId, attempt.id))
+
+    return { attempt, topic: topic ?? null, hits }
 }
 
 /**

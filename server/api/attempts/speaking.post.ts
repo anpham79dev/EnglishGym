@@ -7,6 +7,7 @@ import {
 } from '#shared/constants/app'
 import { submitAttempt } from '../../services/attemptService'
 import { gradeWithGemini } from '../../services/geminiService'
+import { topicText } from '../../services/topicService'
 
 const fieldsSchema = z.object({
     clientAttemptId: z.uuid(),
@@ -33,12 +34,7 @@ export default defineEventHandler(async (event) => {
         else if (p.name) fields[p.name] = p.data.toString('utf8') || null
     }
     const parsed = fieldsSchema.safeParse(fields)
-    if (!parsed.success)
-        throw createError({
-            statusCode: 400,
-            statusMessage: 'Dữ liệu không hợp lệ',
-            data: parsed.error.issues,
-        })
+    if (!parsed.success) throw validationError(parsed.error.issues)
     const body = parsed.data
 
     if (!audio?.length) throw createError({ statusCode: 400, statusMessage: 'Thiếu file audio' })
@@ -52,8 +48,10 @@ export default defineEventHandler(async (event) => {
     }
 
     const topic = await topicText(body.topicId)
-    return submitAttempt({ kind: 'speaking', ...body, mimeType: body.mimeType }, async () => {
-        await consumeGeminiQuota()
-        return gradeWithGemini({ kind: 'speaking', topic, audio: audio!, mimeType: mime })
-    })
+    return submitAttempt({ kind: 'speaking', ...body }, () =>
+        gradeWithGemini(
+            { kind: 'speaking', topic, audio: audio!, mimeType: mime },
+            { beforeCall: consumeGeminiQuota },
+        ),
+    )
 })

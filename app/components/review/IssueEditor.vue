@@ -2,11 +2,14 @@
 import { CATEGORY_LABELS } from '~/constants'
 import type { EditableIssue } from '~/composables/useReviewForm'
 
-const issue = defineModel<EditableIssue>({ required: true })
-defineProps<{ knownKeys: string[] }>()
+/**
+ * Edits the review form's issue object in place (it is reactive and owned by useReviewForm).
+ * This is deliberately not a two-way v-model: the parent never receives an update event.
+ */
+const props = defineProps<{ issue: EditableIssue; knownKeys: string[] }>()
 const emit = defineEmits<{ remove: [] }>()
 
-const editing = ref(issue.value.manual)
+const editing = ref(props.issue.manual)
 </script>
 
 <template>

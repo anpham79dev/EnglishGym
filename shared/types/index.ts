@@ -1,7 +1,7 @@
 import type { ISSUE_CATEGORIES } from '../constants/app'
 
 export type AttemptKind = 'speaking' | 'writing'
-export type AttemptStatus = 'draft' | 'processing' | 'needs_review' | 'confirmed' | 'failed'
+export type AttemptStatus = 'processing' | 'needs_review' | 'confirmed' | 'failed'
 export type IssueCategory = (typeof ISSUE_CATEGORIES)[number]
 
 export interface AiIssue {
@@ -43,6 +43,8 @@ export interface Attempt {
     promptVersion: string | null
     aiJson: string | null
     error: string | null
+    /** When the row last entered `processing` (ms); used to detect stuck grading. */
+    processingAt: number | null
     selfRating: number | null
     fillerCount: number | null
     createdAt: number
@@ -94,4 +96,12 @@ export interface ConfirmBody {
 
 /** Error codes; the client uses them to decide on "Copy prompt". */
 export type ApiErrorCode =
-    'QUOTA' | 'DAILY_LIMIT' | 'INVALID_AI' | 'AI_ERROR' | 'TOO_LARGE' | 'BAD_MIME' | 'RATE_LIMIT'
+    | 'QUOTA'
+    | 'DAILY_LIMIT'
+    | 'INVALID_AI'
+    | 'AI_ERROR'
+    | 'AI_TIMEOUT'
+    | 'IN_PROGRESS'
+    | 'TOO_LARGE'
+    | 'BAD_MIME'
+    | 'RATE_LIMIT'

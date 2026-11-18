@@ -1,7 +1,7 @@
 import { apiError } from '../utils/http'
 import { ApiError, GoogleGenAI, type Part } from '@google/genai'
 import type { z } from 'zod'
-import { PROMPT_VERSION } from '#shared/constants/app'
+import { GEMINI_TIMEOUT_MS, PROMPT_VERSION } from '#shared/constants/app'
 import type { AiResult } from '#shared/types'
 import { speakingResultSchema, toGeminiSchema, writingResultSchema } from '#shared/utils/aiSchema'
 import { buildSpeakingPrompt, buildWritingPrompt } from '#shared/utils/prompts'
@@ -35,6 +35,8 @@ const callOnce = async (parts: Part[], schema: z.ZodType) => {
             temperature: 0.2,
             responseMimeType: 'application/json',
             responseJsonSchema: toGeminiSchema(schema),
+            // Client-side cut-off so the function never hits Vercel's limit mid-request.
+            abortSignal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
         },
     })
     const raw = res.text ?? ''
@@ -48,10 +50,22 @@ const callOnce = async (parts: Part[], schema: z.ZodType) => {
     return { raw, data: parsed.success ? (parsed.data as AiResult) : null }
 }
 
+const isTimeout = (err: unknown) =>
+    err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError')
+
+export interface GradeOptions {
+    /** Runs before every Gemini request, retries included (daily quota). */
+    beforeCall?: () => Promise<void>
+}
+
 /**
- * Call Gemini and validate with Zod. Invalid JSON is retried once; 429 is not retried.
+ * Call Gemini and validate with Zod. Invalid JSON is retried once;
+ * 429 and timeouts are not retried.
  */
-export const gradeWithGemini = async (input: GradeInput): Promise<GradeOutput> => {
+export const gradeWithGemini = async (
+    input: GradeInput,
+    { beforeCall }: GradeOptions = {},
+): Promise<GradeOutput> => {
     const schema = input.kind === 'speaking' ? speakingResultSchema : writingResultSchema
     const parts: Part[] =
         input.kind === 'speaking'
@@ -66,9 +80,14 @@ export const gradeWithGemini = async (input: GradeInput): Promise<GradeOutput> =
               ]
             : [{ text: buildWritingPrompt(input.topic, input.text) }]
 
+    const call = async () => {
+        await beforeCall?.()
+        return callOnce(parts, schema)
+    }
+
     try {
-        let out = await callOnce(parts, schema)
-        if (!out.data) out = await callOnce(parts, schema)
+        let out = await call()
+        if (!out.data) out = await call()
         if (!out.data)
             throw apiError(502, 'INVALID_AI', 'AI trả về JSON sai cấu trúc 2 lần', {
                 raw: out.raw.slice(0, 2000),
@@ -80,6 +99,12 @@ export const gradeWithGemini = async (input: GradeInput): Promise<GradeOutput> =
             promptVersion: PROMPT_VERSION,
         }
     } catch (err) {
+        if (isTimeout(err))
+            throw apiError(
+                504,
+                'AI_TIMEOUT',
+                `Gemini không trả lời trong ${GEMINI_TIMEOUT_MS / 1000} giây. Gửi lại sau hoặc dùng Copy prompt.`,
+            )
         if (err instanceof ApiError) {
             if (err.status === 429)
                 throw apiError(429, 'QUOTA', 'Gemini hết quota. Dùng Copy prompt để chấm thủ công.')

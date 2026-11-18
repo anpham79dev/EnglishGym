@@ -5,6 +5,15 @@ export const MAX_AUDIO_BYTES = 3 * 1024 * 1024
 export const MAX_RECORD_SECONDS = 120
 export const MAX_WRITING_CHARS = 6000
 
+/** Per-call Gemini timeout; two calls plus upload must fit in the 60 s function limit. */
+export const GEMINI_TIMEOUT_MS = 25_000
+/** A `processing` row older than this is treated as stuck and may be re-graded. */
+export const PROCESSING_STALE_MS = 2 * 60 * 1000
+/** App day boundary: Vietnam time (UTC+7), shared by server and client. */
+export const APP_UTC_OFFSET_MIN = 420
+/** Vercel caps function request/response bodies at 4.5 MB; stay below it. */
+export const MAX_BACKUP_BYTES = 4 * 1024 * 1024
+
 /** Base MIME types (without ;codecs) accepted by the server. */
 export const ALLOWED_AUDIO_MIME = [
     'audio/webm',

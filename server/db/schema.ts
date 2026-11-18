@@ -29,7 +29,7 @@ export const attempts = sqliteTable(
         attemptGroupId: text('attempt_group_id').notNull(),
         version: integer('version').notNull().default(1),
         status: text('status', {
-            enum: ['draft', 'processing', 'needs_review', 'confirmed', 'failed'],
+            enum: ['processing', 'needs_review', 'confirmed', 'failed'],
         }).notNull(),
         textOrTranscript: text('text_or_transcript'),
         finalTranscript: text('final_transcript'),
@@ -39,6 +39,7 @@ export const attempts = sqliteTable(
         promptVersion: text('prompt_version'),
         aiJson: text('ai_json'),
         error: text('error'),
+        processingAt: integer('processing_at'),
         selfRating: integer('self_rating'),
         fillerCount: integer('filler_count'),
         createdAt: integer('created_at').notNull().default(now),
