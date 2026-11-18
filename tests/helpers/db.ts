@@ -43,6 +43,7 @@ export const setupTestDb = () => {
         const db = useDb()
         // FK order: children first.
         await db.delete(schema.checkins)
+        await db.delete(schema.focusLog)
         await db.delete(schema.reviewLogs)
         await db.delete(schema.quizzes)
         await db.delete(schema.cards)

@@ -16,9 +16,20 @@ const { data, status } = await useAsyncData('history', () => fetchAttempts({ kin
     default: () => [],
 })
 
+/** N10: versions of one topic ("Nói lại", "Viết phiên bản mới") collapse into one row. */
+const groupOf = computed(() => {
+    const map = new Map<string, typeof data.value>()
+    for (const a of data.value) map.set(a.attemptGroupId, [...(map.get(a.attemptGroupId) ?? []), a])
+    for (const list of map.values()) list.sort((x, y) => y.version - x.version)
+    return map
+})
+const olderVersions = (a: (typeof data.value)[number]) =>
+    (groupOf.value.get(a.attemptGroupId) ?? []).filter((x) => x.id !== a.id)
+
 const byDay = computed(() => {
     const groups = new Map<string, typeof data.value>()
-    for (const a of data.value) {
+    const latest = data.value.filter((a) => groupOf.value.get(a.attemptGroupId)?.[0]?.id === a.id)
+    for (const a of latest) {
         const day = new Date(a.createdAt).toLocaleDateString('vi-VN', {
             weekday: 'long',
             day: '2-digit',
@@ -111,6 +122,48 @@ const timeOf = (ms: number) =>
                             :label="STATUS_LABELS[a.status]"
                         />
                     </NuxtLink>
+                    <UCollapsible
+                        v-if="olderVersions(a).length"
+                        class="mt-1 pl-3"
+                    >
+                        <UButton
+                            color="neutral"
+                            variant="link"
+                            size="xs"
+                            trailing-icon="i-lucide-chevron-down"
+                            :label="`${olderVersions(a).length + 1} phiên bản`"
+                            class="px-0"
+                        />
+                        <template #content>
+                            <div class="space-y-1 pt-1">
+                                <NuxtLink
+                                    v-for="o in olderVersions(a)"
+                                    :key="o.id"
+                                    :to="`/review/${o.id}`"
+                                    class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-elevated"
+                                >
+                                    <span class="text-muted tabular-nums">v{{ o.version }}</span>
+                                    <span class="flex-1 text-xs text-muted">
+                                        {{ formatDateTime(o.createdAt) }}
+                                    </span>
+                                    <UBadge
+                                        :color="STATUS_COLORS[o.status]"
+                                        variant="subtle"
+                                        size="sm"
+                                        :label="STATUS_LABELS[o.status]"
+                                    />
+                                </NuxtLink>
+                                <UButton
+                                    :to="`/compare/${a.attemptGroupId}`"
+                                    size="xs"
+                                    color="neutral"
+                                    variant="outline"
+                                    icon="i-lucide-git-compare"
+                                    label="So sánh các phiên bản"
+                                />
+                            </div>
+                        </template>
+                    </UCollapsible>
                 </li>
             </ol>
         </section>

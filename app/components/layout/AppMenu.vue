@@ -23,6 +23,7 @@ const TABLE_LABELS: Record<keyof ImportResult['after'], string> = {
     quizzes: 'Bài kiểm tra',
     review_logs: 'Lần ôn',
     checkins: 'Điểm danh',
+    focus_log: 'Lịch sử trọng tâm',
 }
 
 const onImport = async (ev: Event) => {
@@ -107,7 +108,13 @@ const items = computed<DropdownMenuItem[][]>(() => [
         {
             label: 'Cài đặt',
             icon: 'i-lucide-settings',
-            children: [[settingItem('Streak tính cả ngày tự học', 'streakIncludeCheckins')]],
+            children: [
+                [
+                    settingItem('Tự tìm lỗi trước khi xem AI', 'selfFindFirst'),
+                    settingItem('Không tick sẵn lỗi của AI', 'noPrecheck'),
+                    settingItem('Streak tính cả ngày tự học', 'streakIncludeCheckins'),
+                ],
+            ],
         },
         { label: 'Xoá audio đã gửi', icon: 'i-lucide-trash-2', onSelect: clearSentAudio },
     ],

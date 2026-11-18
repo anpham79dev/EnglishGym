@@ -42,6 +42,8 @@ export interface TodaySummary {
     dueCards: number
     /** N6: a weekly quiz was finished since Monday. */
     quizDoneThisWeek: boolean
+    /** N7: this month's benchmark per kind and the topic to use. */
+    benchmark: { kind: AttemptKind; done: boolean; topicId: string | null }[]
 }
 
 /** How to grade a submit: Gemini (default), self-review, or JSON pasted from another AI. */
@@ -105,3 +107,14 @@ export const submitSpeaking = (input: {
 
 export const confirmAttempt = (id: string, body: ConfirmBody) =>
     $fetch<Attempt>(`/api/attempts/${id}/confirm`, { method: 'POST', body })
+
+export interface AttemptGroup {
+    groupId: string
+    topic: Topic | null
+    versions: (Attempt & {
+        hits: { originalQuote: string; correction: string; patternKey: string; labelVi: string }[]
+    })[]
+}
+
+export const fetchAttemptGroup = (groupId: string) =>
+    $fetch<AttemptGroup>(`/api/attempts/groups/${groupId}`)

@@ -17,6 +17,12 @@ export const NAV_ITEMS: { to: string; label: string; icon: string; match: string
     },
     { to: '/drill', label: 'Ôn', icon: 'i-lucide-repeat', match: ['/drill', '/quiz'] },
     { to: '/mistakes', label: 'Sổ lỗi', icon: 'i-lucide-notebook-pen', match: ['/mistakes'] },
+    {
+        to: '/progress',
+        label: 'Tiến bộ',
+        icon: 'i-lucide-chart-line',
+        match: ['/progress', '/calendar'],
+    },
 ]
 
 /** True when `path` belongs to a nav item (exact for "/", prefix otherwise). */

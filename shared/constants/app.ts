@@ -2,8 +2,10 @@ export const PROMPT_VERSION = 'v1'
 /**
  * 2: topics.tags/created_at, attempts.source, mistakes.note, checkins.
  * 3: cards, review_logs, quizzes.
+ * 4: focus_log, attempts.is_benchmark/self_marked_count/timed_result, mistake_hits.self_found,
+ *    topics.prep_s/response_s.
  */
-export const EXPORT_SCHEMA_VERSION = 3
+export const EXPORT_SCHEMA_VERSION = 4
 
 export const MAX_AUDIO_BYTES = 3 * 1024 * 1024
 export const MAX_RECORD_SECONDS = 120
@@ -23,6 +25,9 @@ export const MAX_PASTED_JSON_CHARS = 50_000
 export const MAX_ACTIVE_CARDS_PER_MISTAKE = 3
 /** Cards per weekly quiz (N6). */
 export const QUIZ_SIZE = 12
+
+/** Topic tag for monthly benchmark attempts (N7). */
+export const BENCHMARK_TAG = 'benchmark'
 
 /** Weekly practice goal (days, Monday to Sunday). */
 export const WEEKLY_GOAL_DAYS = 5

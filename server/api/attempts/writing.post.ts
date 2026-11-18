@@ -13,6 +13,7 @@ const bodySchema = z.object({
     /** ai = Gemini (default), manual = self-review, pasted = JSON from another AI. */
     mode: z.enum(['ai', 'manual', 'pasted']).default('ai'),
     pastedJson: z.string().max(MAX_PASTED_JSON_CHARS).nullish(),
+    timedResult: z.enum(['in_time', 'overtime']).nullish(),
 })
 
 export default defineEventHandler(async (event) => {

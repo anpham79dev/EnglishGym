@@ -13,6 +13,7 @@ type Seed = {
     title: string
     prompt: string
     level?: string
+    tags?: string
 }
 
 const TOPICS: Seed[] = [
@@ -138,8 +139,29 @@ const TOPICS: Seed[] = [
         title: 'Sprint retrospective',
         prompt: 'Write your retro notes: what went well, what did not, one action item.',
     },
+    // --- Monthly benchmark (N7): same prompt every month, compared on the Progress page ---
+    {
+        id: 's-benchmark',
+        kind: 'speaking',
+        title: 'Monthly benchmark: your current project',
+        prompt: 'In 1–2 minutes, describe the project you are working on: what it does, your role, one recent problem and how you solved it.',
+        tags: 'benchmark',
+    },
+    {
+        id: 'w-benchmark',
+        kind: 'writing',
+        title: 'Monthly benchmark: weekly update email',
+        prompt: 'Write a short weekly update email to your team lead: what you finished, what is next, and one risk.',
+        tags: 'benchmark',
+    },
 ]
 
-const rows = TOPICS.map((t) => ({ level: 'B1', active: true, ...t }))
+const rows = TOPICS.map((t) => ({
+    level: 'B1',
+    active: true,
+    tags: '',
+    createdAt: Date.now(),
+    ...t,
+}))
 const result = await useDb().insert(schema.topics).values(rows).onConflictDoNothing().returning()
 console.log(`Đã thêm ${result.length}/${rows.length} đề.`)

@@ -68,6 +68,9 @@ const quizDue = computed(
     () => !!data.value && new Date().getDay() === 0 && !data.value.quizDoneThisWeek,
 )
 
+/** N7: monthly benchmark not done yet for these kinds. */
+const benchmarkDue = computed(() => data.value?.benchmark.filter((b) => !b.done && b.topicId) ?? [])
+
 const retry = (item: LocalAudio) => send(item)
 </script>
 
@@ -127,6 +130,22 @@ const retry = (item: LocalAudio) => send(item)
                     />
                 </div>
             </UCard>
+
+            <UAlert
+                v-if="benchmarkDue.length"
+                color="neutral"
+                variant="subtle"
+                icon="i-lucide-target"
+                title="Bài đối chứng tháng này"
+                description="Cùng một đề mỗi tháng, để so mình với tháng trước ở trang Tiến bộ."
+                :actions="
+                    benchmarkDue.map((b) => ({
+                        label: b.kind === 'speaking' ? 'Nói đối chứng' : 'Viết đối chứng',
+                        icon: KIND_ICONS[b.kind],
+                        to: { path: `/${b.kind}`, query: { topic: b.topicId } },
+                    }))
+                "
+            />
 
             <UAlert
                 v-if="quizDue"

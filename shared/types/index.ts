@@ -32,6 +32,8 @@ export interface Topic {
     active: boolean
     tags: string
     createdAt: number
+    prepS: number | null
+    responseS: number | null
 }
 
 export interface Attempt {
@@ -53,6 +55,9 @@ export interface Attempt {
     /** When the row last entered `processing` (ms); used to detect stuck grading. */
     processingAt: number | null
     source: AttemptSource
+    isBenchmark: boolean
+    selfMarkedCount: number | null
+    timedResult: 'in_time' | 'overtime' | null
     selfRating: number | null
     fillerCount: number | null
     createdAt: number
@@ -80,6 +85,7 @@ export interface MistakeHit {
     issueIndex: number
     originalQuote: string
     correction: string
+    selfFound: boolean
 }
 
 export interface MistakeWithHits extends Mistake {
@@ -94,12 +100,16 @@ export interface ConfirmIssue {
     patternKey: string
     labelVi: string
     category: string
+    /** N9: marked by the user before seeing AI suggestions. */
+    selfFound?: boolean
 }
 
 export interface ConfirmBody {
     finalTranscript?: string
     selfRating?: number | null
     fillerCount?: number | null
+    /** N9: number of spots marked in the self-find step; omitted when skipped. */
+    selfMarkedCount?: number | null
     issues: ConfirmIssue[]
 }
 

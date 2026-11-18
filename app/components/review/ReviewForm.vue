@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Mistake } from '#shared/types'
+import { matchMarks, type Span } from '#shared/utils/selfFind'
 import { confirmAttempt, type AttemptDetail } from '~/api/attemptApi'
 import { toApiFailure } from '~/api/http'
 
@@ -12,7 +13,10 @@ const props = defineProps<{ detail: AttemptDetail; mistakes: Mistake[] }>()
 const emit = defineEmits<{ saved: [] }>()
 
 const notify = useNotify()
-const form = useReviewForm(props.detail, props.mistakes)
+const { settings } = useSettings()
+const form = useReviewForm(props.detail, props.mistakes, {
+    noPrecheck: settings.value.noPrecheck,
+})
 const { transcript, issues, checked, fillerCount, selfRating } = form
 const knownKeys = computed(() => props.mistakes.map((m) => m.patternKey))
 const isSpeaking = computed(() => props.detail.attempt.kind === 'speaking')
@@ -30,6 +34,30 @@ const tabs = computed(() => [
         icon: 'i-lucide-list-checks',
     },
 ])
+
+/**
+ * N9: mark suspected mistakes yourself before the AI suggestions appear. Skipped for
+ * self-review (nothing to reveal) and when turned off in the menu.
+ */
+const finding = ref(
+    settings.value.selfFindFirst &&
+        props.detail.attempt.source !== 'manual' &&
+        issues.value.length > 0,
+)
+const revealAi = (spans: Span[] | null) => {
+    finding.value = false
+    if (!spans) return
+    const { found, unmatched } = matchMarks(
+        transcript.value,
+        spans,
+        issues.value.map((i) => i.quote),
+    )
+    issues.value.forEach((issue, i) => (issue.selfFound = found[i]!))
+    for (const s of unmatched) form.addManual({ quote: s.quote, selfFound: true })
+    form.selfMarkedCount.value = spans.length
+    const n = found.filter(Boolean).length
+    notify.info(`Bạn tự bắt được ${n}/${issues.value.length - unmatched.length} lỗi AI nêu`)
+}
 
 const addIssue = () => {
     form.addManual()
@@ -53,7 +81,15 @@ const save = async () => {
 </script>
 
 <template>
-    <div class="space-y-4">
+    <ReviewSelfFind
+        v-if="finding"
+        :text="transcript"
+        @done="revealAi"
+    />
+    <div
+        v-else
+        class="space-y-4"
+    >
         <UTabs
             v-model="tab"
             :items="tabs"

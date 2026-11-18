@@ -35,6 +35,9 @@ export const topicInputSchema = z.object({
     level: z.string().trim().max(20).default('B1'),
     tags: z.union([z.string().max(500), z.array(z.string().max(50)).max(20)]).optional(),
     active: z.boolean().optional(),
+    /** N8: TOEIC-style timing in seconds; null or missing = untimed. */
+    prepS: z.coerce.number().int().min(0).max(600).nullish(),
+    responseS: z.coerce.number().int().min(10).max(3600).nullish(),
 })
 export type TopicInput = z.infer<typeof topicInputSchema>
 
@@ -62,6 +65,8 @@ export const createTopic = async (input: TopicInput) => {
             tags: normalizeTags(input.tags),
             active: input.active ?? true,
             createdAt: Date.now(),
+            prepS: input.prepS ?? null,
+            responseS: input.responseS ?? null,
         })
         .returning()
     return row!
@@ -140,6 +145,8 @@ export const importTopics = async (format: 'json' | 'csv', content: string) => {
                 tags: normalizeTags(input.tags),
                 active: input.active ?? true,
                 createdAt: Date.now(),
+                prepS: input.prepS ?? null,
+                responseS: input.responseS ?? null,
             })
             added++
         }

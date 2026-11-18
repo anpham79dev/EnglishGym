@@ -5,6 +5,7 @@ const bodySchema = z.object({
     finalTranscript: z.string().max(20000).optional(),
     selfRating: z.number().int().min(1).max(5).nullish(),
     fillerCount: z.number().int().min(0).max(1000).nullish(),
+    selfMarkedCount: z.number().int().min(0).max(200).nullish(),
     issues: z
         .array(
             z.object({
@@ -14,6 +15,7 @@ const bodySchema = z.object({
                 patternKey: z.string().trim().min(1).max(100),
                 labelVi: z.string().trim().max(200),
                 category: z.string().max(50),
+                selfFound: z.boolean().optional(),
             }),
         )
         .max(50),

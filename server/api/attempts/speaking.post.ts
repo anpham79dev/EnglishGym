@@ -28,6 +28,7 @@ const fieldsSchema = z.object({
     mode: z.enum(['ai', 'manual', 'pasted']).default('ai'),
     transcript: z.string().max(MAX_WRITING_CHARS).nullish(),
     pastedJson: z.string().max(MAX_PASTED_JSON_CHARS).nullish(),
+    timedResult: z.enum(['in_time', 'overtime']).nullish(),
 })
 
 export default defineEventHandler(async (event) => {

@@ -52,6 +52,14 @@ const categoryLabel = computed(
                         label="Tự thêm"
                     />
                     <UBadge
+                        v-if="issue.selfFound"
+                        color="success"
+                        variant="subtle"
+                        size="sm"
+                        icon="i-lucide-scan-search"
+                        label="Bạn tự bắt được"
+                    />
+                    <UBadge
                         v-if="!issue.matched"
                         color="warning"
                         variant="subtle"

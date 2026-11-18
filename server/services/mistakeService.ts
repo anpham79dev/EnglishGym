@@ -1,6 +1,6 @@
 import { createError } from 'h3'
 import { randomUUID } from 'node:crypto'
-import { and, count, desc, eq, inArray, max, min } from 'drizzle-orm'
+import { and, count, desc, eq, inArray, isNull, max, min } from 'drizzle-orm'
 import type { AttemptKind, MistakeWithHits } from '#shared/types'
 // Relative import: backupService (and so this file) also runs in scripts outside Nuxt.
 import { toPatternKey } from '../../shared/utils/patternKey'
@@ -46,6 +46,7 @@ export const listMistakes = async (kind?: AttemptKind): Promise<MistakeWithHits[
             issueIndex: h.issueIndex,
             originalQuote: h.originalQuote,
             correction: h.correction,
+            selfFound: h.selfFound,
             kind: schema.attempts.kind,
             createdAt: schema.attempts.createdAt,
         })
@@ -81,6 +82,23 @@ export interface MistakeSplit {
     labelVi: string
 }
 
+/**
+ * N7: close the open focus period and, when `mistakeId` is given, start a new one, so the
+ * Progress page knows which pattern was the focus in which week.
+ */
+export const setFocusLog = async (tx: Tx | Db, mistakeId: string | null, now = Date.now()) => {
+    await tx.update(schema.focusLog).set({ endedAt: now }).where(isNull(schema.focusLog.endedAt))
+    if (!mistakeId) return
+    const row = await tx.query.mistakes.findFirst({ where: eq(m.id, mistakeId) })
+    if (row)
+        await tx.insert(schema.focusLog).values({
+            id: randomUUID(),
+            mistakeId,
+            patternKey: row.patternKey,
+            startedAt: now,
+        })
+}
+
 const requireMistake = async (tx: Tx | Db, id: string, message = 'Không tìm thấy lỗi') => {
     const row = await tx.query.mistakes.findFirst({ where: eq(m.id, id) })
     if (!row) throw createError({ statusCode: 404, statusMessage: message })
@@ -109,6 +127,7 @@ export const mergeMistake = async (id: string, targetId: string) => {
         await tx.delete(m).where(eq(m.id, id))
         await recomputeMistake(tx, target.id)
         await rebalanceCards(tx, target.id)
+        if (current.isFocus) await setFocusLog(tx, target.id)
     })
     return findMistake(id)
 }
@@ -156,7 +175,7 @@ export const splitMistake = async (id: string, split: MistakeSplit) => {
 /** Edit fields; a new pattern_key must not clash, and only one mistake can be the focus. */
 export const updateMistake = async (id: string, update: MistakeUpdate) => {
     await useDb().transaction(async (tx) => {
-        await requireMistake(tx, id)
+        const current = await requireMistake(tx, id)
         const fields = { ...update }
         if (fields.patternKey !== undefined) {
             const key = toPatternKey(fields.patternKey)
@@ -170,6 +189,8 @@ export const updateMistake = async (id: string, update: MistakeUpdate) => {
         }
         if (fields.isFocus) await tx.update(m).set({ isFocus: false })
         if (Object.keys(fields).length) await tx.update(m).set(fields).where(eq(m.id, id))
+        if (fields.isFocus && !current.isFocus) await setFocusLog(tx, id)
+        else if (fields.isFocus === false && current.isFocus) await setFocusLog(tx, null)
     })
     return findMistake(id)
 }

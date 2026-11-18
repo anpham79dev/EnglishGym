@@ -225,6 +225,15 @@ const retryAgain = () =>
                         </ul>
                     </UCard>
                     <UButton
+                        v-if="attempt.version > 1"
+                        block
+                        color="neutral"
+                        variant="outline"
+                        icon="i-lucide-git-compare"
+                        label="So với bản trước"
+                        :to="`/compare/${attempt.attemptGroupId}?b=${attempt.id}`"
+                    />
+                    <UButton
                         block
                         size="lg"
                         :icon="isSpeaking ? 'i-lucide-repeat' : 'i-lucide-git-branch'"

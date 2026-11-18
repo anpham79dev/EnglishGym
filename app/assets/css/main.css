@@ -13,6 +13,8 @@
     --ui-success: var(--ui-color-success-700);
     --ui-error: var(--ui-color-error-600);
     --ui-warning: var(--ui-color-warning-700);
+    /* Chart series (N7): teal-600 passes the dataviz validator on both surfaces. */
+    --chart-series: var(--ui-color-primary-600);
 }
 
 .dark {

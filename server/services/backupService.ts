@@ -16,6 +16,7 @@ const TABLES = {
     quizzes: schema.quizzes,
     review_logs: schema.reviewLogs,
     checkins: schema.checkins,
+    focus_log: schema.focusLog,
 } as const
 type TableName = keyof typeof TABLES
 /** FK-safe import order. */
@@ -28,6 +29,7 @@ const IMPORT_ORDER: TableName[] = [
     'quizzes',
     'review_logs',
     'checkins',
+    'focus_log',
 ]
 
 export const countRecords = async () => {
@@ -54,6 +56,7 @@ export const exportAll = async () => {
         quizzes: await db.select().from(schema.quizzes),
         review_logs: await db.select().from(schema.reviewLogs),
         checkins: await db.select().from(schema.checkins),
+        focus_log: await db.select().from(schema.focusLog),
     }
 }
 
@@ -127,6 +130,8 @@ const importSchema = z.object({
     cards: z.array(z.record(z.string(), z.unknown())).default([]),
     quizzes: z.array(z.record(z.string(), z.unknown())).default([]),
     review_logs: z.array(z.record(z.string(), z.unknown())).default([]),
+    // Added in schema_version 4.
+    focus_log: z.array(z.record(z.string(), z.unknown())).default([]),
 })
 
 type Row = Record<string, unknown>
@@ -286,6 +291,14 @@ export const importAll = async (input: unknown) => {
         for (const { id } of allMistakes) await rebalanceCards(tx, id)
 
         await insertChunks(tx, 'checkins', data.checkins)
+        await insertChunks(
+            tx,
+            'focus_log',
+            data.focus_log.map((row) => ({
+                ...row,
+                mistakeId: mistakeIds.get(String(row.mistakeId)) ?? String(row.mistakeId),
+            })),
+        )
     })
 
     const after = await countRecords()

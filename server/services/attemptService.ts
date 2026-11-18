@@ -1,7 +1,7 @@
 import { createError } from 'h3'
 import { randomUUID } from 'node:crypto'
-import { and, desc, eq, gte, isNull, lt, max, type SQL } from 'drizzle-orm'
-import { PROCESSING_STALE_MS } from '#shared/constants/app'
+import { and, desc, eq, gte, inArray, isNull, lt, max, type SQL } from 'drizzle-orm'
+import { BENCHMARK_TAG, PROCESSING_STALE_MS } from '#shared/constants/app'
 import type { Attempt, AttemptKind, AttemptSource, ConfirmBody } from '#shared/types'
 import { toPatternKey } from '#shared/utils/patternKey'
 import { useDb, schema } from '../db'
@@ -49,6 +49,15 @@ export interface SubmitInput {
     text?: string | null
     /** gemini (default), manual (self-review, no AI) or pasted (JSON from another AI). */
     source?: AttemptSource
+    /** N8: whether a timed topic was answered within its response time. */
+    timedResult?: 'in_time' | 'overtime' | null
+}
+
+/** N7: an attempt on a topic tagged "benchmark" is a monthly comparison point. */
+const isBenchmarkTopic = async (topicId: string | null) => {
+    if (!topicId) return false
+    const topic = await useDb().query.topics.findFirst({ where: eq(schema.topics.id, topicId) })
+    return !!topic?.tags.split(',').includes(BENCHMARK_TAG)
 }
 
 /** True when a `processing` row has been stuck long enough to assume its function died. */
@@ -124,6 +133,8 @@ const claimAttempt = async (input: SubmitInput): Promise<string | Attempt> => {
             createdAt: now,
             processingAt: now,
             source: input.source ?? 'gemini',
+            isBenchmark: await isBenchmarkTopic(input.topicId),
+            timedResult: input.timedResult ?? null,
         })
     } catch (err) {
         // A parallel request with the same client id inserted first: it is grading now.
@@ -168,6 +179,45 @@ export const submitAttempt = async (
         throw err
     }
     return (await getAttempt(id))!
+}
+
+/**
+ * All versions of one attempt group (N10, "Nói lại" / "Viết phiên bản mới"), oldest first,
+ * each with its confirmed hits, for the comparison screen.
+ */
+export const getAttemptGroup = async (groupId: string) => {
+    const db = useDb()
+    const versions = await db
+        .select()
+        .from(t)
+        .where(eq(t.attemptGroupId, groupId))
+        .orderBy(t.version)
+    if (!versions.length)
+        throw createError({ statusCode: 404, statusMessage: 'Không tìm thấy nhóm bài' })
+    const hits = await db
+        .select({
+            attemptId: schema.mistakeHits.attemptId,
+            originalQuote: schema.mistakeHits.originalQuote,
+            correction: schema.mistakeHits.correction,
+            patternKey: schema.mistakes.patternKey,
+            labelVi: schema.mistakes.labelVi,
+        })
+        .from(schema.mistakeHits)
+        .innerJoin(schema.mistakes, eq(schema.mistakes.id, schema.mistakeHits.mistakeId))
+        .where(
+            inArray(
+                schema.mistakeHits.attemptId,
+                versions.map((v) => v.id),
+            ),
+        )
+    const topic = versions[0]!.topicId
+        ? await db.query.topics.findFirst({ where: eq(schema.topics.id, versions[0]!.topicId) })
+        : null
+    return {
+        groupId,
+        topic: topic ?? null,
+        versions: versions.map((v) => ({ ...v, hits: hits.filter((h) => h.attemptId === v.id) })),
+    }
 }
 
 /** Attempt with its topic and confirmed hits, for the review page. */
@@ -243,6 +293,7 @@ export const confirmAttempt = async (id: string, body: ConfirmBody): Promise<Att
                     issueIndex: issue.issueIndex,
                     originalQuote: issue.originalQuote,
                     correction: issue.correction,
+                    selfFound: issue.selfFound ?? false,
                 })
                 .onConflictDoNothing()
                 .returning({ id: schema.mistakeHits.id })
@@ -264,6 +315,7 @@ export const confirmAttempt = async (id: string, body: ConfirmBody): Promise<Att
                         : attempt.textOrTranscript,
                 selfRating: body.selfRating ?? null,
                 fillerCount: body.fillerCount ?? null,
+                selfMarkedCount: body.selfMarkedCount ?? null,
                 confirmedAt: now,
             })
             .where(eq(t.id, id))

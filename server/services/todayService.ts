@@ -5,6 +5,7 @@ import { geminiDailyLimit, geminiUsedToday } from '../utils/quota'
 import { geminiModel } from './geminiService'
 import { getStreak } from './streakService'
 import { countDue } from './cardService'
+import { getBenchmarkStatus } from './statsService'
 import { dayKey, dayStart, weekStart } from '#shared/utils/streak'
 
 /**
@@ -75,6 +76,8 @@ export const getTodaySummary = async (from: number, day: number, includeCheckins
         backupBytes: await estimateBackupBytes(),
         streak: await getStreak(includeCheckins),
         dueCards: await countDue(),
+        /** N7: monthly benchmark per kind. */
+        benchmark: await getBenchmarkStatus(),
         /** N6: a quiz was finished since Monday (app time). */
         quizDoneThisWeek: !!(await db.query.quizzes.findFirst({
             where: gte(schema.quizzes.finishedAt, dayStart(weekStart(dayKey(Date.now())))),

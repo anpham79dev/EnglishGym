@@ -16,6 +16,8 @@ export interface EditableIssue {
     matched: boolean
     tooLong: boolean
     manual: boolean
+    /** N9: overlaps a spot you marked before seeing the AI suggestions. */
+    selfFound: boolean
 }
 
 /** Manual issues start here to avoid clashing with AI indexes. */
@@ -31,9 +33,14 @@ const parseAi = (raw: string | null): AiResult | null => {
 }
 
 /**
- * Review screen state. Only matched, non-rewrite issues are pre-checked.
+ * Review screen state. Only matched, non-rewrite issues are pre-checked, unless the
+ * "no pre-check" setting (N9) starts every AI issue unchecked.
  */
-export const useReviewForm = (detail: AttemptDetail, known: Mistake[]) => {
+export const useReviewForm = (
+    detail: AttemptDetail,
+    known: Mistake[],
+    opts: { noPrecheck?: boolean } = {},
+) => {
     const { attempt } = detail
     const ai = parseAi(attempt.aiJson)
     const source = attempt.textOrTranscript ?? ''
@@ -58,10 +65,11 @@ export const useReviewForm = (detail: AttemptDetail, known: Mistake[]) => {
                 category: it.category,
                 patternKey: key,
                 labelVi: existing?.labelVi ?? it.reason_vi.slice(0, 120),
-                checked: a.defaultChecked,
+                checked: opts.noPrecheck ? false : a.defaultChecked,
                 matched: a.matched,
                 tooLong: a.tooLong,
                 manual: false,
+                selfFound: false,
             }
         }),
     )
@@ -71,20 +79,28 @@ export const useReviewForm = (detail: AttemptDetail, known: Mistake[]) => {
         for (const it of issues.value) it.matched = quoteExists(text, it.quote)
     })
 
-    const addManual = () => {
+    /** N9: spots marked in the self-find step; null when the step was skipped. */
+    const selfMarkedCount = ref<number | null>(null)
+
+    /**
+     * Add a user issue. A spot you marked that no AI issue covers comes in prefilled and
+     * unchecked: it still needs a correction and a pattern before it can be kept.
+     */
+    const addManual = (prefill: { quote?: string; selfFound?: boolean } = {}) => {
         const next = Math.max(MANUAL_INDEX_BASE - 1, ...issues.value.map((i) => i.index)) + 1
         issues.value.push({
             index: next,
-            quote: '',
+            quote: prefill.quote ?? '',
             correction: '',
-            reasonVi: 'Tự thêm',
+            reasonVi: prefill.selfFound ? 'Bạn tự đánh dấu, AI không nêu' : 'Tự thêm',
             category: 'other',
             patternKey: '',
             labelVi: '',
-            checked: true,
+            checked: !prefill.selfFound,
             matched: true,
             tooLong: false,
             manual: true,
+            selfFound: !!prefill.selfFound,
         })
     }
 
@@ -103,6 +119,7 @@ export const useReviewForm = (detail: AttemptDetail, known: Mistake[]) => {
         finalTranscript: attempt.kind === 'speaking' ? transcript.value : undefined,
         selfRating: selfRating.value,
         fillerCount: fillerCount.value,
+        selfMarkedCount: selfMarkedCount.value,
         issues: checked.value.map((i) => ({
             issueIndex: i.index,
             originalQuote: i.quote.trim(),
@@ -110,6 +127,7 @@ export const useReviewForm = (detail: AttemptDetail, known: Mistake[]) => {
             patternKey: i.patternKey,
             labelVi: i.labelVi.trim(),
             category: i.category,
+            selfFound: i.selfFound,
         })),
     })
 
@@ -118,6 +136,7 @@ export const useReviewForm = (detail: AttemptDetail, known: Mistake[]) => {
         transcript,
         selfRating,
         fillerCount,
+        selfMarkedCount,
         issues,
         checked,
         validationError,

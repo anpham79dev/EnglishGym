@@ -20,6 +20,9 @@ export const topics = sqliteTable('topics', {
     /** Comma-separated tags, e.g. "work,standup" or "toeic-sw,opinion". */
     tags: text('tags').notNull().default(''),
     createdAt: integer('created_at').notNull().default(now),
+    /** N8 (TOEIC S&W): preparation and response time in seconds; null = untimed. */
+    prepS: integer('prep_s'),
+    responseS: integer('response_s'),
 })
 
 export const attempts = sqliteTable(
@@ -47,6 +50,12 @@ export const attempts = sqliteTable(
         source: text('source', { enum: ['gemini', 'manual', 'pasted'] })
             .notNull()
             .default('gemini'),
+        /** N7: answered a topic tagged "benchmark" (monthly comparison). */
+        isBenchmark: integer('is_benchmark', { mode: 'boolean' }).notNull().default(false),
+        /** N9: spots marked before seeing AI suggestions; null = step skipped. */
+        selfMarkedCount: integer('self_marked_count'),
+        /** N8: timed topic finished within the response time or not. */
+        timedResult: text('timed_result', { enum: ['in_time', 'overtime'] }),
         selfRating: integer('self_rating'),
         fillerCount: integer('filler_count'),
         createdAt: integer('created_at').notNull().default(now),
@@ -86,6 +95,8 @@ export const mistakeHits = sqliteTable(
         issueIndex: integer('issue_index').notNull(),
         originalQuote: text('original_quote').notNull(),
         correction: text('correction').notNull(),
+        /** N9: you marked this spot yourself before seeing the AI suggestions. */
+        selfFound: integer('self_found', { mode: 'boolean' }).notNull().default(false),
     },
     (t) => [
         uniqueIndex('mistake_hits_attempt_issue_uq').on(t.attemptId, t.issueIndex),
@@ -162,6 +173,18 @@ export const reviewLogs = sqliteTable(
         index('review_logs_time_idx').on(t.reviewedAt),
     ],
 )
+
+/**
+ * N7: which pattern was the weekly focus and when. No foreign key: a focus pattern may later
+ * be merged away, and the history should survive that.
+ */
+export const focusLog = sqliteTable('focus_log', {
+    id: text('id').primaryKey(),
+    mistakeId: text('mistake_id').notNull(),
+    patternKey: text('pattern_key').notNull(),
+    startedAt: integer('started_at').notNull(),
+    endedAt: integer('ended_at'),
+})
 
 /** Manual check-ins for days studied outside the app (books, listening…). */
 export const checkins = sqliteTable(

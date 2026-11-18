@@ -6,7 +6,8 @@ type Counts = Record<
     | 'cards'
     | 'quizzes'
     | 'review_logs'
-    | 'checkins',
+    | 'checkins'
+    | 'focus_log',
     number
 >
 
