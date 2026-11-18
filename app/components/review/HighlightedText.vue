@@ -18,7 +18,7 @@ const checkedOf = (idx: number | null) =>
 </script>
 
 <template>
-    <p class="prewrap">
+    <p class="prewrap leading-relaxed">
         <template
             v-for="(s, i) in segments"
             :key="i"
@@ -29,7 +29,7 @@ const checkedOf = (idx: number | null) =>
                 :title="`Lỗi #${s.issueIndex + 1}`"
             >
                 {{ s.text }}
-                <sup>{{ s.issueIndex + 1 }}</sup>
+                <sup class="font-semibold text-warning">{{ s.issueIndex + 1 }}</sup>
             </mark>
             <template v-else>{{ s.text }}</template>
         </template>

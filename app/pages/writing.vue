@@ -14,6 +14,7 @@ import type { WritingDraft } from '~/composables/useLocalDb'
 
 const route = useRoute()
 const db = useLocalDb()
+const confirm = useConfirm()
 const { data: topics } = await useAsyncData('topics-writing', () => fetchTopics('writing'), {
     default: () => [],
 })
@@ -110,7 +111,13 @@ const submit = async () => {
 }
 
 const clearDraft = async () => {
-    if (!confirm('Xoá bản nháp hiện tại?')) return
+    const ok = await confirm({
+        title: 'Xoá bản nháp?',
+        description: 'Nội dung đang viết sẽ mất.',
+        confirmLabel: 'Xoá',
+        danger: true,
+    })
+    if (!ok) return
     await db.drafts.delete('current')
     failedText = null
     Object.assign(draft, { text: '', clientAttemptId: crypto.randomUUID(), attemptGroupId: null })
@@ -122,59 +129,74 @@ const manualPrompt = computed(() =>
 </script>
 
 <template>
-    <main class="page">
-        <h1>Luyện viết</h1>
-        <p
+    <LayoutPage title="Luyện viết">
+        <template #actions>
+            <UButton
+                color="neutral"
+                variant="ghost"
+                icon="i-lucide-eraser"
+                label="Xoá nháp"
+                :disabled="!draft.text"
+                @click="clearDraft"
+            />
+        </template>
+
+        <UAlert
             v-if="draft.attemptGroupId"
-            class="alert alert-ok"
-        >
-            Đang viết phiên bản mới. Sửa các lỗi đã duyệt rồi nộp lại.
-        </p>
+            color="primary"
+            variant="subtle"
+            icon="i-lucide-git-branch"
+            title="Phiên bản mới"
+            description="Sửa các lỗi đã duyệt rồi nộp lại."
+        />
 
         <BaseTopicSelect
             v-model="draft.topicId"
             :topics="topics"
         />
 
-        <div class="card stack">
-            <textarea
-                v-model="draft.text"
-                :maxlength="MAX_WRITING_CHARS"
-                rows="12"
-                placeholder="Tự viết bằng tiếng Anh. Bản nháp tự lưu trên máy."
-                spellcheck="false"
-                autocapitalize="sentences"
-            />
-            <div class="spread">
-                <span class="muted">
-                    {{ words }} từ · {{ draft.text.length }}/{{ MAX_WRITING_CHARS }}
-                </span>
-                <button
-                    class="btn btn-sm"
-                    :disabled="!draft.text"
-                    @click="clearDraft"
-                >
-                    Xoá nháp
-                </button>
-            </div>
-            <button
-                class="btn btn-primary btn-block"
-                :disabled="sending || draft.text.trim().length < 10"
-                @click="submit"
-            >
-                {{ sending ? 'Đang chấm…' : 'Nộp để nhận gợi ý lỗi' }}
-            </button>
-        </div>
+        <UTextarea
+            v-model="draft.text"
+            :maxlength="MAX_WRITING_CHARS"
+            :rows="14"
+            autoresize
+            :maxrows="30"
+            placeholder="Tự viết bằng tiếng Anh. Bản nháp tự lưu trên máy."
+            spellcheck="false"
+            autocapitalize="sentences"
+            size="xl"
+            class="w-full"
+            :ui="{ base: 'min-h-[50dvh] leading-relaxed' }"
+            aria-label="Bài viết"
+        />
 
-        <p
+        <UAlert
             v-if="failure"
-            class="alert"
-        >
-            {{ failure.message }}
-        </p>
+            color="error"
+            variant="subtle"
+            icon="i-lucide-circle-alert"
+            :title="failure.message"
+        />
         <BaseCopyPrompt
             v-if="failure && shouldOfferManualPrompt(failure)"
             :prompt="manualPrompt"
         />
-    </main>
+
+        <!-- Sticky submit bar: stays above the bottom nav and the on-screen keyboard. -->
+        <div
+            class="sticky bottom-20 z-10 flex items-center gap-3 rounded-xl border border-default bg-default/90 p-3 shadow-lg backdrop-blur lg:bottom-4"
+        >
+            <span class="flex-1 text-sm text-muted tabular-nums">
+                {{ words }} từ · {{ draft.text.length }}/{{ MAX_WRITING_CHARS }}
+            </span>
+            <UButton
+                size="lg"
+                icon="i-lucide-send"
+                :loading="sending"
+                :disabled="draft.text.trim().length < 10"
+                :label="sending ? 'Đang chấm' : 'Nộp để nhận gợi ý'"
+                @click="submit"
+            />
+        </div>
+    </LayoutPage>
 </template>

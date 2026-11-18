@@ -24,52 +24,70 @@ const submit = async () => {
 </script>
 
 <template>
-    <main class="page login">
-        <h1>EnglishGym</h1>
-        <p class="muted">Nói hoặc viết → phản hồi → duyệt lỗi → ôn lại → thử lại.</p>
-        <form
-            class="card stack"
-            @submit.prevent="submit"
-        >
-            <p
-                v-if="error"
-                class="alert"
-            >
-                {{ error }}
-            </p>
-            <div>
-                <label for="email">Email</label>
-                <input
-                    id="email"
-                    v-model="email"
-                    type="email"
-                    autocomplete="username"
-                    required
-                />
+    <div class="grid min-h-dvh place-items-center px-4 py-10">
+        <div class="w-full max-w-sm space-y-6">
+            <div class="space-y-3 text-center">
+                <span
+                    class="mx-auto grid size-14 place-items-center rounded-2xl bg-primary text-inverted"
+                >
+                    <UIcon
+                        name="i-lucide-dumbbell"
+                        class="size-8"
+                        aria-hidden="true"
+                    />
+                </span>
+                <h1 class="text-2xl font-semibold tracking-tight text-highlighted">EnglishGym</h1>
+                <p class="text-sm text-muted">
+                    Nói hoặc viết, duyệt lỗi AI gợi ý, rồi luyện lại đúng chỗ mình hay sai.
+                </p>
             </div>
-            <div>
-                <label for="password">Mật khẩu</label>
-                <input
-                    id="password"
-                    v-model="password"
-                    type="password"
-                    autocomplete="current-password"
-                    required
-                />
-            </div>
-            <button
-                class="btn btn-primary btn-block"
-                :disabled="loading"
-            >
-                {{ loading ? 'Đang đăng nhập…' : 'Đăng nhập' }}
-            </button>
-        </form>
-    </main>
+            <UCard>
+                <form
+                    class="space-y-4"
+                    @submit.prevent="submit"
+                >
+                    <UAlert
+                        v-if="error"
+                        color="error"
+                        variant="subtle"
+                        icon="i-lucide-circle-alert"
+                        :title="error"
+                    />
+                    <UFormField
+                        label="Email"
+                        name="email"
+                    >
+                        <UInput
+                            v-model="email"
+                            type="email"
+                            autocomplete="username"
+                            required
+                            size="lg"
+                            class="w-full"
+                        />
+                    </UFormField>
+                    <UFormField
+                        label="Mật khẩu"
+                        name="password"
+                    >
+                        <UInput
+                            v-model="password"
+                            type="password"
+                            autocomplete="current-password"
+                            required
+                            size="lg"
+                            class="w-full"
+                        />
+                    </UFormField>
+                    <UButton
+                        type="submit"
+                        block
+                        size="lg"
+                        :loading="loading"
+                        label="Đăng nhập"
+                    />
+                </form>
+            </UCard>
+        </div>
+    </div>
 </template>
-
-<style scoped>
-.login {
-    padding-top: 15vh;
-    max-width: 420px;
-}
-</style>

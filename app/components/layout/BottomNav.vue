@@ -6,57 +6,34 @@ const isActive = (to: string) => (to === '/' ? route.path === '/' : route.path.s
 </script>
 
 <template>
-    <nav class="nav">
-        <NuxtLink
-            v-for="item in NAV_ITEMS"
-            :key="item.to"
-            :to="item.to"
-            class="item"
-            :class="{ active: isActive(item.to) }"
-        >
-            <span
-                class="icon"
-                aria-hidden="true"
+    <nav
+        class="fixed inset-x-0 bottom-0 z-30 border-t border-default bg-default/90 pb-[env(safe-area-inset-bottom)] backdrop-blur"
+        aria-label="Điều hướng chính"
+    >
+        <ul class="mx-auto flex max-w-xl">
+            <li
+                v-for="item in NAV_ITEMS"
+                :key="item.to"
+                class="flex-1"
             >
-                {{ item.icon }}
-            </span>
-            <span>{{ item.label }}</span>
-        </NuxtLink>
+                <NuxtLink
+                    :to="item.to"
+                    class="flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs transition-colors"
+                    :class="
+                        isActive(item.to)
+                            ? 'font-semibold text-primary'
+                            : 'text-muted hover:text-default'
+                    "
+                    :aria-current="isActive(item.to) ? 'page' : undefined"
+                >
+                    <UIcon
+                        :name="item.icon"
+                        class="size-6"
+                        aria-hidden="true"
+                    />
+                    <span>{{ item.label }}</span>
+                </NuxtLink>
+            </li>
+        </ul>
     </nav>
 </template>
-
-<style scoped>
-.nav {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 20;
-    display: flex;
-    height: calc(var(--nav-h) + env(safe-area-inset-bottom));
-    padding-bottom: env(safe-area-inset-bottom);
-    background: var(--surface);
-    border-top: 1px solid var(--border);
-}
-
-.item {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.75rem;
-    color: var(--muted);
-    text-decoration: none;
-}
-
-.icon {
-    font-size: 1.3rem;
-    line-height: 1.2;
-}
-
-.item.active {
-    color: var(--primary);
-    font-weight: 700;
-}
-</style>

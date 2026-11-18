@@ -5,11 +5,11 @@ const props = defineProps<{
     audio?: { blob: Blob; mimeType: string } | null
 }>()
 
-const toast = useToast()
+const notify = useNotify()
 
 const copy = async () => {
-    if (await copyText(props.prompt)) toast.success('Đã copy prompt')
-    else toast.error('Không copy được, hãy bôi đen và copy tay')
+    if (await copyText(props.prompt)) notify.success('Đã copy prompt')
+    else notify.error('Không copy được, hãy bôi đen và copy tay')
 }
 
 const saveAudio = () => {
@@ -24,32 +24,51 @@ const saveAudio = () => {
 </script>
 
 <template>
-    <div class="card stack">
-        <div class="spread">
-            <strong>Chấm thủ công</strong>
-            <div class="row">
-                <button
-                    v-if="audio"
-                    class="btn btn-sm"
-                    @click="saveAudio"
-                >
-                    Tải audio
-                </button>
-                <button
-                    class="btn btn-sm btn-primary"
-                    @click="copy"
-                >
-                    Copy prompt
-                </button>
+    <UCard>
+        <div class="space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <h2 class="flex items-center gap-2 font-semibold text-highlighted">
+                    <UIcon
+                        name="i-lucide-clipboard-copy"
+                        class="size-5 text-primary"
+                        aria-hidden="true"
+                    />
+                    Chấm thủ công
+                </h2>
+                <div class="flex gap-2">
+                    <UButton
+                        v-if="audio"
+                        color="neutral"
+                        variant="outline"
+                        icon="i-lucide-download"
+                        label="Tải audio"
+                        @click="saveAudio"
+                    />
+                    <UButton
+                        icon="i-lucide-copy"
+                        label="Copy prompt"
+                        @click="copy"
+                    />
+                </div>
             </div>
+            <p class="text-sm text-muted">
+                Dán prompt vào AI chat khác{{ audio ? ' kèm file audio' : '' }}. Bài vẫn được giữ
+                trên máy để gửi lại khi Gemini hoạt động.
+            </p>
+            <UCollapsible>
+                <UButton
+                    color="neutral"
+                    variant="link"
+                    trailing-icon="i-lucide-chevron-down"
+                    label="Xem prompt"
+                    class="px-0"
+                />
+                <template #content>
+                    <pre
+                        class="prewrap mt-2 max-h-72 overflow-auto rounded-lg bg-elevated p-3 text-xs text-toned"
+                        >{{ prompt }}</pre>
+                </template>
+            </UCollapsible>
         </div>
-        <p class="muted">
-            Dán prompt vào AI chat khác{{ audio ? ' kèm file audio' : '' }}. Bài vẫn được giữ trên
-            máy để gửi lại khi Gemini hoạt động.
-        </p>
-        <details>
-            <summary class="muted">Xem prompt</summary>
-            <pre class="prewrap muted">{{ prompt }}</pre>
-        </details>
-    </div>
+    </UCard>
 </template>

@@ -1,24 +1,22 @@
 <script setup lang="ts">
+import type { DropdownMenuItem } from '@nuxt/ui'
 import { MAX_BACKUP_BYTES } from '#shared/constants/app'
-import { exportUrl, importBackup } from '~/api/backupApi'
+import { importBackup, type ImportResult } from '~/api/backupApi'
 import { toApiFailure } from '~/api/http'
-import { LS_LAST_BACKUP } from '~/constants'
 
-const open = ref(false)
 const fileInput = ref<HTMLInputElement>()
 const { logout } = useAuth()
-const toast = useToast()
+const notify = useNotify()
+const confirm = useConfirm()
+const { download } = useBackup()
+const colorMode = useColorMode()
 
-const download = (format: 'json' | 'csv' | 'anki') => {
-    window.location.href = exportUrl(format)
-    if (format === 'json') {
-        try {
-            localStorage.setItem(LS_LAST_BACKUP, String(Date.now()))
-        } catch {
-            /* ignore */
-        }
-    }
-    open.value = false
+const importResult = ref<ImportResult | null>(null)
+const TABLE_LABELS: Record<keyof ImportResult['after'], string> = {
+    topics: 'Đề',
+    attempts: 'Bài nộp',
+    mistakes: 'Kiểu lỗi',
+    mistake_hits: 'Lần mắc',
 }
 
 const onImport = async (ev: Event) => {
@@ -27,126 +25,132 @@ const onImport = async (ev: Event) => {
     try {
         // Vercel rejects bodies over 4.5 MB; big backups go through the local script.
         if (file.size > MAX_BACKUP_BYTES) {
-            toast.error(
+            notify.error(
                 `File ${formatBytes(file.size)} quá lớn để nhập qua web. Chạy npm run db:restore trên máy.`,
             )
             return
         }
-        const res = await importBackup(JSON.parse(await file.text()))
-        const lines = Object.entries(res.after).map(([k, v]) => {
-            const n = k as keyof typeof res.after
-            return `${k}: ${res.before[n]} → ${v} (file: ${res.inFile[n]}, bỏ qua: ${res.skipped[n]})`
-        })
-        alert(`Nhập xong. Số bản ghi trước → sau:\n${lines.join('\n')}`)
+        importResult.value = await importBackup(JSON.parse(await file.text()))
     } catch (e) {
-        toast.error(e instanceof SyntaxError ? 'File không phải JSON' : toApiFailure(e).message)
+        notify.error(e instanceof SyntaxError ? 'File không phải JSON' : toApiFailure(e).message)
     } finally {
         if (fileInput.value) fileInput.value.value = ''
-        open.value = false
     }
 }
 
 const clearSentAudio = async () => {
-    if (!confirm('Xoá các audio đã gửi khỏi máy này? Bản chép lời trên server vẫn giữ nguyên.'))
-        return
+    const ok = await confirm({
+        title: 'Xoá audio đã gửi?',
+        description: 'Chỉ xoá file trên máy này. Bản chép lời trên server vẫn giữ nguyên.',
+        confirmLabel: 'Xoá',
+        danger: true,
+    })
+    if (!ok) return
     const n = await useLocalDb().audios.where('status').equals('sent').delete()
-    toast.success(`Đã xoá ${n} audio`)
-    open.value = false
+    notify.success(`Đã xoá ${n} audio`)
 }
+
+const themeItem = (label: string, value: 'system' | 'light' | 'dark', icon: string) => ({
+    label,
+    icon,
+    type: 'checkbox' as const,
+    checked: colorMode.preference === value,
+    onUpdateChecked: () => (colorMode.preference = value),
+})
+
+const items = computed<DropdownMenuItem[][]>(() => [
+    [{ label: 'Lịch sử', icon: 'i-lucide-history', to: '/history' }],
+    [
+        {
+            label: 'Xuất JSON (sao lưu)',
+            icon: 'i-lucide-download',
+            onSelect: () => download('json'),
+        },
+        { label: 'Xuất CSV sổ lỗi', icon: 'i-lucide-sheet', onSelect: () => download('csv') },
+        { label: 'Xuất CSV cho Anki', icon: 'i-lucide-layers', onSelect: () => download('anki') },
+        {
+            label: 'Nhập từ file JSON',
+            icon: 'i-lucide-upload',
+            onSelect: () => fileInput.value?.click(),
+        },
+    ],
+    [
+        {
+            label: 'Giao diện',
+            icon: 'i-lucide-sun-moon',
+            children: [
+                [
+                    themeItem('Theo máy', 'system', 'i-lucide-monitor'),
+                    themeItem('Sáng', 'light', 'i-lucide-sun'),
+                    themeItem('Tối', 'dark', 'i-lucide-moon'),
+                ],
+            ],
+        },
+        { label: 'Xoá audio đã gửi', icon: 'i-lucide-trash-2', onSelect: clearSentAudio },
+    ],
+    [{ label: 'Đăng xuất', icon: 'i-lucide-log-out', color: 'error', onSelect: logout }],
+])
 </script>
 
 <template>
-    <div class="menu">
-        <button
-            class="btn btn-sm"
+    <UDropdownMenu
+        :items="items"
+        :content="{ align: 'end' }"
+    >
+        <UButton
+            icon="i-lucide-ellipsis"
+            color="neutral"
+            variant="ghost"
+            size="lg"
             aria-label="Menu"
-            @click="open = !open"
-        >
-            ⋯
-        </button>
-        <div
-            v-if="open"
-            class="backdrop"
-            @click="open = false"
         />
-        <div
-            v-if="open"
-            class="panel card"
-        >
-            <NuxtLink
-                to="/history"
-                class="btn btn-block"
-                @click="open = false"
+    </UDropdownMenu>
+    <input
+        ref="fileInput"
+        type="file"
+        accept="application/json,.json"
+        hidden
+        @change="onImport"
+    />
+
+    <UModal
+        :open="!!importResult"
+        title="Nhập xong"
+        description="Số bản ghi trước và sau khi nhập. Dòng đã có sẵn được bỏ qua."
+        @update:open="(v) => !v && (importResult = null)"
+    >
+        <template #body>
+            <table
+                v-if="importResult"
+                class="w-full text-sm"
             >
-                Lịch sử
-            </NuxtLink>
-            <button
-                class="btn btn-block"
-                @click="download('json')"
-            >
-                Xuất JSON (sao lưu)
-            </button>
-            <button
-                class="btn btn-block"
-                @click="download('csv')"
-            >
-                Xuất CSV sổ lỗi
-            </button>
-            <button
-                class="btn btn-block"
-                @click="download('anki')"
-            >
-                Xuất CSV cho Anki
-            </button>
-            <button
-                class="btn btn-block"
-                @click="fileInput?.click()"
-            >
-                Nhập từ file JSON
-            </button>
-            <input
-                ref="fileInput"
-                type="file"
-                accept="application/json,.json"
-                hidden
-                @change="onImport"
-            />
-            <button
-                class="btn btn-block"
-                @click="clearSentAudio"
-            >
-                Xoá audio cục bộ đã gửi
-            </button>
-            <button
-                class="btn btn-block btn-danger"
-                @click="logout"
-            >
-                Đăng xuất
-            </button>
-        </div>
-    </div>
+                <thead class="text-left text-muted">
+                    <tr>
+                        <th class="py-1 font-medium">Bảng</th>
+                        <th class="py-1 text-right font-medium">Trước</th>
+                        <th class="py-1 text-right font-medium">Sau</th>
+                        <th class="py-1 text-right font-medium">Trong file</th>
+                        <th class="py-1 text-right font-medium">Bỏ qua</th>
+                    </tr>
+                </thead>
+                <tbody class="tabular-nums">
+                    <tr
+                        v-for="(label, key) in TABLE_LABELS"
+                        :key="key"
+                        class="border-t border-default"
+                    >
+                        <td class="py-1.5">{{ label }}</td>
+                        <td class="py-1.5 text-right">{{ importResult.before[key] }}</td>
+                        <td class="py-1.5 text-right font-semibold">
+                            {{ importResult.after[key] }}
+                        </td>
+                        <td class="py-1.5 text-right">{{ importResult.inFile[key] }}</td>
+                        <td class="py-1.5 text-right text-muted">
+                            {{ importResult.skipped[key] }}
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </template>
+    </UModal>
 </template>
-
-<style scoped>
-.menu {
-    position: relative;
-}
-
-.backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 30;
-}
-
-.panel {
-    position: absolute;
-    right: 0;
-    top: 44px;
-    z-index: 31;
-    width: 250px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    box-shadow: 0 8px 24px rgb(0 0 0 / 0.15);
-}
-</style>

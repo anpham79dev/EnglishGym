@@ -11,50 +11,26 @@ const props = defineProps<{
 const words = computed(() => countWords(props.text))
 const wpm = computed(() => (props.durationS ? wordsPerMinute(words.value, props.durationS) : null))
 const per100 = computed(() => errorsPer100Words(props.errorCount, words.value))
+
+const tiles = computed(() =>
+    [
+        { value: words.value, label: 'từ', show: true },
+        { value: wpm.value ?? '–', label: 'từ/phút', show: !!props.durationS },
+        { value: props.fillerCount, label: 'từ đệm', show: props.fillerCount !== null },
+        { value: per100.value ?? '–', label: 'lỗi/100 từ', show: true },
+    ].filter((t) => t.show),
+)
 </script>
 
 <template>
-    <div class="kpis">
-        <div>
-            <strong>{{ words }}</strong>
-            <span>từ</span>
+    <dl class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div
+            v-for="t in tiles"
+            :key="t.label"
+            class="rounded-lg bg-elevated px-3 py-2 text-center"
+        >
+            <dd class="text-xl font-semibold text-highlighted tabular-nums">{{ t.value }}</dd>
+            <dt class="text-xs text-muted">{{ t.label }}</dt>
         </div>
-        <div v-if="durationS">
-            <strong>{{ wpm ?? '–' }}</strong>
-            <span>từ/phút</span>
-        </div>
-        <div v-if="fillerCount !== null">
-            <strong>{{ fillerCount }}</strong>
-            <span>từ đệm</span>
-        </div>
-        <div>
-            <strong>{{ per100 ?? '–' }}</strong>
-            <span>lỗi/100 từ</span>
-        </div>
-    </div>
+    </dl>
 </template>
-
-<style scoped>
-.kpis {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
-    gap: 8px;
-}
-
-.kpis div {
-    background: var(--bg);
-    border-radius: 10px;
-    padding: 8px;
-    text-align: center;
-}
-
-.kpis strong {
-    display: block;
-    font-size: 1.25rem;
-}
-
-.kpis span {
-    font-size: 0.8rem;
-    color: var(--muted);
-}
-</style>

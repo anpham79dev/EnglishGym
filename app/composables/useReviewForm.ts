@@ -96,7 +96,7 @@ export const useReviewForm = (detail: AttemptDetail, known: Mistake[]) => {
 
     const validationError = computed(() => {
         const bad = checked.value.find((i) => !i.quote.trim() || !i.patternKey.trim())
-        return bad ? `Lỗi #${bad.index + 1} cần có đoạn sai và pattern_key` : null
+        return bad ? `Lỗi #${bad.index + 1} cần có đoạn sai và kiểu lỗi` : null
     })
 
     const toBody = (): ConfirmBody => ({

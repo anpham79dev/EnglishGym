@@ -4,7 +4,7 @@ import { buildManualPrompt, topicToText } from '#shared/utils/prompts'
 import { fetchAttempt } from '~/api/attemptApi'
 import { fetchMistakes } from '~/api/mistakeApi'
 import { toApiFailure } from '~/api/http'
-import { STATUS_LABELS } from '~/constants'
+import { KIND_ICONS, KIND_LABELS, STATUS_COLORS, STATUS_LABELS } from '~/constants'
 
 const route = useRoute()
 const id = route.params.id as string
@@ -56,56 +56,88 @@ const retryAgain = () =>
 </script>
 
 <template>
-    <main class="page">
-        <p
+    <LayoutPage wide>
+        <UAlert
             v-if="error"
-            class="alert"
+            color="error"
+            variant="subtle"
+            icon="i-lucide-circle-alert"
+            :title="toApiFailure(error).message"
+        />
+
+        <div
+            v-if="!data && !error"
+            class="space-y-4"
         >
-            {{ toApiFailure(error).message }}
-        </p>
+            <USkeleton class="h-10 w-64" />
+            <USkeleton class="h-64 w-full rounded-xl" />
+        </div>
 
         <template v-if="data && attempt">
-            <div class="spread">
-                <h1>{{ isSpeaking ? '🎙 Bài nói' : '✎ Bài viết' }} · v{{ attempt.version }}</h1>
-                <span class="badge">{{ STATUS_LABELS[attempt.status] }}</span>
-            </div>
-            <p class="muted">
-                {{ data.detail.topic?.title ?? 'Tự do' }} · {{ formatDateTime(attempt.createdAt) }}
-                <template v-if="attempt.durationS">
-                    · {{ formatDuration(attempt.durationS) }}
-                </template>
-            </p>
+            <header class="space-y-1">
+                <div class="flex flex-wrap items-center gap-2">
+                    <UIcon
+                        :name="KIND_ICONS[attempt.kind]"
+                        class="size-6 text-primary"
+                        aria-hidden="true"
+                    />
+                    <h1 class="text-2xl font-semibold tracking-tight text-highlighted">
+                        {{ KIND_LABELS[attempt.kind] }}
+                        <span class="font-normal text-muted">v{{ attempt.version }}</span>
+                    </h1>
+                    <UBadge
+                        :color="STATUS_COLORS[attempt.status]"
+                        variant="subtle"
+                        :label="STATUS_LABELS[attempt.status]"
+                    />
+                </div>
+                <p class="text-sm text-muted">
+                    {{ data.detail.topic?.title ?? 'Tự do' }} ·
+                    {{ formatDateTime(attempt.createdAt) }}
+                    <template v-if="attempt.durationS">
+                        · {{ formatDuration(attempt.durationS) }}
+                    </template>
+                </p>
+            </header>
 
             <audio
                 v-if="audioUrl"
                 :src="audioUrl"
                 controls
                 preload="metadata"
-                style="width: 100%; margin-bottom: 12px"
+                class="w-full"
             />
 
             <!-- Processing / failed -->
-            <div
-                v-if="attempt.status === 'processing' && !stuck"
-                class="card stack"
-            >
-                <p>Bài đang được chấm.</p>
-                <button
-                    class="btn"
-                    @click="refresh()"
-                >
-                    Tải lại
-                </button>
-            </div>
+            <UCard v-if="attempt.status === 'processing' && !stuck">
+                <div class="flex items-center gap-3">
+                    <UIcon
+                        name="i-lucide-loader-circle"
+                        class="size-6 animate-spin text-primary"
+                        aria-hidden="true"
+                    />
+                    <p class="flex-1">Bài đang được chấm, thường mất dưới 1 phút.</p>
+                    <UButton
+                        color="neutral"
+                        variant="outline"
+                        icon="i-lucide-refresh-cw"
+                        label="Tải lại"
+                        @click="refresh()"
+                    />
+                </div>
+            </UCard>
             <template v-if="attempt.status === 'failed' || stuck">
-                <p class="alert">
-                    {{ stuck ? 'Chấm bài bị gián đoạn, bài chưa có kết quả.' : attempt.error }}
-                </p>
-                <p class="muted">
-                    Gửi lại từ
-                    {{ isSpeaking ? 'mục "Chưa gửi" ở Luyện nói' : 'bản nháp ở Luyện viết' }} (cùng
-                    mã lượt nộp, không tạo trùng).
-                </p>
+                <UAlert
+                    color="error"
+                    variant="subtle"
+                    icon="i-lucide-circle-alert"
+                    :title="
+                        stuck
+                            ? 'Chấm bài bị gián đoạn, bài chưa có kết quả.'
+                            : (attempt.error ?? 'Chấm bài lỗi')
+                    "
+                    :description="`Gửi lại từ ${isSpeaking ? 'mục “Chưa gửi” ở Luyện nói' : 'bản nháp ở Luyện viết'} (cùng mã lượt nộp, không tạo trùng), hoặc chấm thủ công bên dưới.`"
+                />
                 <BaseCopyPrompt :prompt="manualPrompt" />
             </template>
 
@@ -119,51 +151,77 @@ const retryAgain = () =>
             />
 
             <!-- Confirmed -->
-            <template v-if="attempt.status === 'confirmed'">
-                <div class="card stack">
-                    <h2>{{ isSpeaking ? 'Bản chép lời cuối' : 'Bài viết' }}</h2>
-                    <ReviewHighlightedText
-                        :text="attempt.finalTranscript ?? ''"
-                        :issues="
-                            data.detail.hits.map((h) => ({
-                                index: h.issueIndex,
-                                quote: h.originalQuote,
-                                checked: true,
-                            }))
-                        "
+            <div
+                v-if="attempt.status === 'confirmed'"
+                class="grid gap-4 lg:grid-cols-2 lg:items-start"
+            >
+                <UCard>
+                    <template #header>
+                        <h2 class="font-semibold text-highlighted">
+                            {{ isSpeaking ? 'Bản chép lời cuối' : 'Bài viết' }}
+                        </h2>
+                    </template>
+                    <div class="space-y-4">
+                        <ReviewHighlightedText
+                            :text="attempt.finalTranscript ?? ''"
+                            :issues="
+                                data.detail.hits.map((h) => ({
+                                    index: h.issueIndex,
+                                    quote: h.originalQuote,
+                                    checked: true,
+                                }))
+                            "
+                        />
+                        <ReviewKpiPanel
+                            :text="attempt.finalTranscript ?? ''"
+                            :duration-s="attempt.durationS"
+                            :error-count="data.detail.hits.length"
+                            :filler-count="attempt.fillerCount"
+                        />
+                        <p
+                            v-if="attempt.selfRating"
+                            class="text-sm text-muted"
+                        >
+                            Tự chấm: {{ attempt.selfRating }}/5
+                        </p>
+                    </div>
+                </UCard>
+                <div class="space-y-4">
+                    <UCard>
+                        <template #header>
+                            <h2 class="font-semibold text-highlighted">
+                                Lỗi đã lưu ({{ data.detail.hits.length }})
+                            </h2>
+                        </template>
+                        <p
+                            v-if="!data.detail.hits.length"
+                            class="text-sm text-muted"
+                        >
+                            Không có lỗi nào được lưu cho bài này.
+                        </p>
+                        <ul class="-my-2 divide-y divide-default">
+                            <li
+                                v-for="h in data.detail.hits"
+                                :key="h.issueIndex"
+                                class="space-y-1 py-3"
+                            >
+                                <BaseCorrectionPair
+                                    :wrong="h.originalQuote"
+                                    :right="h.correction"
+                                />
+                                <p class="text-xs text-muted">{{ h.labelVi }}</p>
+                            </li>
+                        </ul>
+                    </UCard>
+                    <UButton
+                        block
+                        size="lg"
+                        :icon="isSpeaking ? 'i-lucide-repeat' : 'i-lucide-git-branch'"
+                        :label="isSpeaking ? 'Nói lại' : 'Viết phiên bản mới'"
+                        @click="retryAgain"
                     />
-                    <ReviewKpiPanel
-                        :text="attempt.finalTranscript ?? ''"
-                        :duration-s="attempt.durationS"
-                        :error-count="data.detail.hits.length"
-                        :filler-count="attempt.fillerCount"
-                    />
-                    <p
-                        v-if="attempt.selfRating"
-                        class="muted"
-                    >
-                        Tự chấm: {{ attempt.selfRating }}/5
-                    </p>
                 </div>
-                <div class="card">
-                    <h2>Lỗi đã lưu ({{ data.detail.hits.length }})</h2>
-                    <p
-                        v-for="h in data.detail.hits"
-                        :key="h.issueIndex"
-                    >
-                        <s>{{ h.originalQuote }}</s>
-                        →
-                        <strong>{{ h.correction }}</strong>
-                        <span class="muted">· {{ h.labelVi }}</span>
-                    </p>
-                </div>
-                <button
-                    class="btn btn-primary btn-block"
-                    @click="retryAgain"
-                >
-                    {{ isSpeaking ? 'Nói lại' : 'Viết phiên bản mới' }}
-                </button>
-            </template>
+            </div>
         </template>
-    </main>
+    </LayoutPage>
 </template>

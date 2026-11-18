@@ -7,7 +7,7 @@ import type { Recording } from '~/composables/useRecorder'
 import type { LocalAudio } from '~/composables/useLocalDb'
 
 const route = useRoute()
-const toast = useToast()
+const notify = useNotify()
 const { data: topics } = await useAsyncData('topics-speaking', () => fetchTopics('speaking'), {
     default: () => [],
 })
@@ -61,21 +61,22 @@ const discard = async () => {
     if (!current.value) return
     await useLocalDb().audios.delete(current.value.id)
     setCurrent(null)
-    toast.info('Đã bỏ bản ghi')
+    notify.info('Đã bỏ bản ghi')
 }
 
 const manualPrompt = computed(() => buildManualPrompt('speaking', topicToText(topic.value)))
 </script>
 
 <template>
-    <main class="page">
-        <h1>Luyện nói</h1>
-        <p
+    <LayoutPage title="Luyện nói">
+        <UAlert
             v-if="groupId"
-            class="alert alert-ok"
-        >
-            Nói lại: lượt này sẽ được so sánh với lần trước cùng nhóm.
-        </p>
+            color="primary"
+            variant="subtle"
+            icon="i-lucide-repeat"
+            title="Nói lại"
+            description="Lượt này sẽ được so sánh với lần trước cùng nhóm."
+        />
 
         <BaseTopicSelect
             v-model="topicId"
@@ -87,53 +88,65 @@ const manualPrompt = computed(() => buildManualPrompt('speaking', topicToText(to
             @recorded="onRecorded"
         />
 
-        <p
+        <UAlert
             v-if="warning"
-            class="alert"
-        >
-            {{ warning }}
-        </p>
+            color="warning"
+            variant="subtle"
+            icon="i-lucide-triangle-alert"
+            :title="warning"
+        />
 
-        <div
-            v-if="current && audioUrl"
-            class="card stack"
-        >
-            <h2>Nghe lại</h2>
-            <audio
-                :src="audioUrl"
-                controls
-                preload="metadata"
-                style="width: 100%"
-            />
-            <p class="muted">
-                {{ formatDuration(current.durationS) }} · {{ formatBytes(current.blob.size) }} ·
-                {{ current.mimeType }}
-            </p>
-            <div class="row">
-                <button
-                    class="btn btn-primary"
-                    style="flex: 1"
-                    :disabled="sending"
-                    @click="send(current)"
+        <UCard v-if="current && audioUrl">
+            <div class="space-y-4">
+                <div class="flex items-center justify-between gap-2">
+                    <h2 class="font-semibold text-highlighted">Nghe lại</h2>
+                    <span class="text-xs text-muted tabular-nums">
+                        {{ formatDuration(current.durationS) }} ·
+                        {{ formatBytes(current.blob.size) }}
+                    </span>
+                </div>
+                <audio
+                    :src="audioUrl"
+                    controls
+                    preload="metadata"
+                    class="w-full"
+                />
+                <div class="flex gap-2">
+                    <UButton
+                        class="flex-1"
+                        size="lg"
+                        block
+                        icon="i-lucide-send"
+                        :loading="sending"
+                        :label="sending ? 'Đang chấm, có thể tới 1 phút' : 'Nộp để chấm'"
+                        @click="send(current)"
+                    />
+                    <UButton
+                        size="lg"
+                        color="neutral"
+                        variant="outline"
+                        icon="i-lucide-rotate-ccw"
+                        label="Ghi lại"
+                        :disabled="sending"
+                        @click="discard"
+                    />
+                </div>
+                <p
+                    v-if="sending"
+                    class="text-xs text-muted"
                 >
-                    {{ sending ? 'Đang chấm… (có thể tới 1 phút)' : 'Nộp để chấm' }}
-                </button>
-                <button
-                    class="btn"
-                    :disabled="sending"
-                    @click="discard"
-                >
-                    Ghi lại
-                </button>
+                    Bài đã lưu trên máy. Rời trang cũng không mất, bài nằm ở mục "Chưa gửi".
+                </p>
             </div>
-        </div>
+        </UCard>
 
-        <p
+        <UAlert
             v-if="failure"
-            class="alert"
-        >
-            {{ failure.message }}
-        </p>
+            color="error"
+            variant="subtle"
+            icon="i-lucide-circle-alert"
+            :title="failure.message"
+        />
         <BaseCopyPrompt
             v-if="offerManual"
             :prompt="manualPrompt"
@@ -144,5 +157,5 @@ const manualPrompt = computed(() => buildManualPrompt('speaking', topicToText(to
             v-if="!sending"
             @retry="send"
         />
-    </main>
+    </LayoutPage>
 </template>
